@@ -153,27 +153,29 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
   Widget _buildIllustration(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(32.0),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 280),
-        child: AspectRatio(
-          aspectRatio: 1,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Theme.of(context).primaryColor.withOpacity(0.2),
-                width: 4,
-              ),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Center(
-              child: Icon(
-                Icons.account_circle,
-                size: 180,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
+      child: Center(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Image.asset(
+            'assets/images/student_profile.png',
+            width: 220,
+            height: 220,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(
+                  Icons.account_circle,
+                  size: 120,
+                  color: Theme.of(context).primaryColor,
+                ),
+              );
+            },
           ),
         ),
       ),

@@ -23,7 +23,13 @@ service cloud.firestore {
     // User profiles
     match /users/{userId} {
       allow read: if isOwner(userId) || isCanteenOwner();
-      allow write: if isOwner(userId);
+      // Students may create their own student profile, but roles cannot be self-escalated.
+      allow create: if isOwner(userId) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.role == 'student';
+      allow update: if isOwner(userId) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.role == resource.data.role;
     }
 
     // Food items catalog

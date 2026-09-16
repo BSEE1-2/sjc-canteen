@@ -10,6 +10,7 @@ import foodThree from '../../assets/images/food_3.png'
 import onboardingImage from '../../assets/images/onboarding_1.png'
 import studentsImage from '../../assets/images/students.jpg'
 import canteenImage from '../../assets/images/canteen.jpg'
+import logoApp from '../../assets/images/logoapp.png'
 import { addFoodItem, createStudentAccount, deleteFoodItem, getUserProfile, loginWithGoogle, loginWithRole, logout as logoutUser, markNotificationRead, placeStudentOrder, requestPasswordReset, subscribeToAllOrders, subscribeToFoodItems, subscribeToNotifications, subscribeToStudentOrders, toggleFoodAvailability, updateOrderStatus, updateUserProfile } from './services/firebaseService'
 import { auth } from './firebase'
 import './App.css'
@@ -57,7 +58,7 @@ function OnboardingScreen() {
   return (
     <div className="screen-shell onboarding-shell">
       <div className="brand-row">
-        <img className="brand-logo" src="/logoapp.png" alt="SJC Canteen" />
+        <img className="brand-logo" src={logoApp} alt="SJC Canteen" />
         <span>SJC Canteen</span>
         {page < slides.length - 1 && <Button className="skip-button" variant="text" onClick={() => navigate('/role-selection')}>Skip</Button>}
       </div>
@@ -86,7 +87,7 @@ function RoleSelectionScreen() {
   return (
     <div className="screen-shell">
       <div className="header-row">
-        <img className="brand-logo small" src="/logoapp.png" alt="SJC Canteen" />
+        <img className="brand-logo small" src={logoApp} alt="SJC Canteen" />
         <h2>SJC Canteen</h2>
       </div>
 
@@ -159,7 +160,7 @@ function StudentLoginScreen() {
     <div className="screen-shell login-shell">
       <div className="login-header">
         <IconButton color="primary" onClick={() => navigate('/role-selection')} aria-label="Go back"><ArrowBack /></IconButton>
-        <img className="brand-logo small" src="/logoapp.png" alt="SJC Canteen" />
+        <img className="brand-logo small" src={logoApp} alt="SJC Canteen" />
       </div>
 
       <div className="login-illustration gradient-amber">
@@ -244,7 +245,7 @@ function OwnerLoginScreen() {
     <div className="screen-shell login-shell">
       <div className="login-header">
         <IconButton color="primary" onClick={() => navigate('/role-selection')} aria-label="Go back"><ArrowBack /></IconButton>
-        <img className="brand-logo small" src="/logoapp.png" alt="SJC Canteen" />
+        <img className="brand-logo small" src={logoApp} alt="SJC Canteen" />
       </div>
       <div className="login-illustration gradient-amber"><span>Owner Access</span></div>
       <h1>Owner Login</h1>

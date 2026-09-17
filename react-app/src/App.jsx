@@ -638,7 +638,18 @@ function NotificationsScreen() {
 function OwnerNavigationScreen() {
   const [tab, setTab] = useState('Dashboard')
   const views = { Dashboard: <OwnerDashboardScreen />, Orders: <OwnerOrdersScreen />, Analytics: <OwnerAnalyticsScreen />, Inventory: <OwnerInventoryScreen />, Profile: <OwnerProfileScreen /> }
-  return <div className="app-shell">{views[tab]}<nav className="bottom-nav owner-nav">{['Dashboard', 'Orders', 'Analytics', 'Inventory', 'Profile'].map((item) => <Button key={item} className={tab === item ? 'nav-item active' : 'nav-item'} variant="text" onClick={() => setTab(item)}>{item}</Button>)}</nav></div>
+  return (
+    <div className="app-shell">
+      {views[tab]}
+      <nav className="bottom-nav owner-nav">
+        {['Dashboard', 'Orders', 'Analytics', 'Inventory', 'Profile'].map((item) => (
+          <Button key={item} className={tab === item ? 'nav-item active' : 'nav-item'} variant="text" onClick={() => setTab(item)}>
+            {item}
+          </Button>
+        ))}
+      </nav>
+    </div>
+  )
 }
 
 function OwnerOrdersScreen() {

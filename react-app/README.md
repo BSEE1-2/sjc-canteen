@@ -1,5 +1,19 @@
 # React + Vite
 
+## Firebase setup
+
+The app expects the `VITE_FIREBASE_*` values in `.env`. Food inventory is intentionally text-only, so the app uses Auth and Firestore without Firebase Storage.
+
+After selecting the Firebase project, deploy the rules from this directory:
+
+```bash
+npx firebase login
+npx firebase use <your-firebase-project-id>
+npx firebase deploy --only firestore:rules
+```
+
+Without this deployment, the student store feed or owner inventory can show `Missing or insufficient permissions`.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:

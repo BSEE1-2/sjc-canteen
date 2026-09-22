@@ -68,6 +68,9 @@
 }
 
 .live-notification button {
+  position: relative;
+  min-width: 48px;
+  min-height: 48px;
   border: none;
   border-radius: 8px;
   padding: 7px 8px;
@@ -84,6 +87,131 @@
   background: transparent;
   font-size: 1.1rem;
   line-height: 1;
+}
+
+/* Shared expressive motion and state-layer behavior for interactive controls. */
+button,
+[role='button'],
+.MuiButton-root,
+.MuiIconButton-root {
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-radius 260ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 220ms ease;
+}
+
+button::after,
+.MuiButton-root::after,
+.MuiIconButton-root::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+button:hover::after,
+.MuiButton-root:hover::after,
+.MuiIconButton-root:hover::after {
+  opacity: 0.08;
+}
+
+button:focus-visible,
+.MuiButton-root:focus-visible,
+.MuiIconButton-root:focus-visible {
+  outline: 3px solid rgba(99, 160, 2, 0.38);
+  outline-offset: 3px;
+}
+
+button:active,
+.MuiButton-root:active,
+.MuiIconButton-root:active {
+  transform: scale(0.96);
+  border-radius: 24px;
+  transition: transform 110ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-radius 360ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 220ms ease;
+}
+
+button:active::after,
+.MuiButton-root:active::after,
+.MuiIconButton-root:active::after {
+  opacity: 0.14;
+  transition-duration: 60ms;
+}
+
+.MuiButton-root,
+.MuiIconButton-root {
+  min-height: 48px;
+  overflow: hidden;
+}
+
+.m3-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 22px;
+  height: 20px;
+  vertical-align: middle;
+}
+
+.m3-loading span {
+  width: 4px;
+  height: 9px;
+  border-radius: 999px;
+  background: currentColor;
+  animation: m3-wave 900ms cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+
+.m3-loading span:nth-child(2) { animation-delay: 90ms; }
+.m3-loading span:nth-child(3) { animation-delay: 180ms; }
+.m3-loading span:nth-child(4) { animation-delay: 270ms; }
+
+@keyframes m3-wave {
+  0%, 100% { height: 7px; transform: translateY(0); }
+  35% { height: 17px; transform: translateY(-2px); }
+  65% { height: 10px; transform: translateY(1px); }
+}
+
+.primary-button,
+.secondary-button,
+.icon-button,
+.text-link,
+.nav-item,
+.cart-button,
+.category,
+.add-button,
+.payment-option,
+.skip-button,
+.store-tile {
+  min-height: 48px;
+  overflow: hidden;
+}
+
+.onboarding-dot {
+  min-height: 48px;
+  min-width: 48px;
+  background: transparent;
+  position: relative;
+}
+
+.onboarding-dot::before {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #bec9c7;
+  content: '';
+}
+
+.onboarding-dot.active::before {
+  width: 26px;
+  border-radius: 9px;
+  background: #356000;
 }
 
 .dashboard-screen {
@@ -185,6 +313,7 @@
 
 .student-nav .nav-item.active,
 .owner-nav .nav-item.active {
+  border-radius: 24px;
   color: #17201f;
   background: rgba(255, 166, 0, 0.16);
 }
@@ -1029,6 +1158,65 @@
   color: rgba(25, 29, 21, 0.58);
   font-size: 0.72rem;
   text-align: right;
+}
+
+.order-progress {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px 0 2px;
+}
+
+.progress-stage {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  color: rgba(25, 29, 21, 0.48);
+  font-size: 0.62rem;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.progress-stage:not(:last-child)::after {
+  position: absolute;
+  top: 5px;
+  left: calc(50% + 7px);
+  width: calc(100% - 14px);
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(25, 29, 21, 0.12);
+  content: '';
+}
+
+.progress-stage.complete {
+  color: #356000;
+}
+
+.progress-stage.complete:not(:last-child)::after {
+  background: #63a002;
+  animation: progress-wave 900ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.progress-dot {
+  position: relative;
+  z-index: 1;
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(25, 29, 21, 0.2);
+  border-radius: 50%;
+  background: #f9fbef;
+}
+
+.progress-stage.complete .progress-dot {
+  border-color: #63a002;
+  background: #63a002;
+  box-shadow: 0 0 0 4px rgba(99, 160, 2, 0.12);
+}
+
+@keyframes progress-wave {
+  from { transform: scaleX(0.5); transform-origin: left; opacity: 0.45; }
+  to { transform: scaleX(1); transform-origin: left; opacity: 1; }
 }
 
 .status {

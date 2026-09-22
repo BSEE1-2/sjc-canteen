@@ -4,8 +4,6 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { Button, IconButton, TextField } from '@mui/material'
 import { AddShoppingCart, ArrowBack, Fastfood, Google, LocalCafe, Restaurant, Storefront, Visibility, VisibilityOff } from '@mui/icons-material'
 
-import heroImage from './assets/hero.png'
-
 const appLogo = '/logoapp.png'
 const welcomeImage = '/onboarding_1.png'
 const canteenImage = '/canteen.jpg'
@@ -49,6 +47,33 @@ function FoodCategoryIcon({ category }) {
   if (category === 'Drinks') return <LocalCafe />
   if (category === 'Snacks') return <Fastfood />
   return <Restaurant />
+}
+
+function LoadingIndicator({ label = 'Loading' }) {
+  return (
+    <span className="m3-loading" role="status" aria-label={label}>
+      <span />
+      <span />
+      <span />
+      <span />
+    </span>
+  )
+}
+
+function OrderProgressTracker({ status }) {
+  const stages = ['Pending', 'Accepted', 'Preparing', 'Ready for Pickup']
+  const currentIndex = Math.max(0, stages.indexOf(status))
+
+  return (
+    <div className="order-progress" aria-label={`Order progress: ${status}`}>
+      {stages.map((stage, index) => (
+        <div className={index <= currentIndex ? 'progress-stage complete' : 'progress-stage'} key={stage}>
+          <span className="progress-dot" />
+          <span>{stage === 'Ready for Pickup' ? 'Ready' : stage}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function App() {
@@ -247,7 +272,7 @@ function StudentLoginScreen() {
         {error && <div className="error-box">{error}</div>}
 
         <Button type="submit" variant="contained" fullWidth className="login-button" disabled={isLoading}>
-          {isLoading ? 'LOGGING IN...' : 'LOG IN'}
+          {isLoading ? <><LoadingIndicator label="Logging in" /> LOGGING IN...</> : 'LOG IN'}
         </Button>
 
         <Button type="button" variant="outlined" color="secondary" fullWidth startIcon={<Google />} onClick={handleGoogleLogin} disabled={isLoading}>
@@ -312,7 +337,7 @@ function OwnerLoginScreen() {
         {error && <div className="error-box">{error}</div>}
 
         <Button type="submit" variant="contained" fullWidth className="login-button" disabled={isLoading}>
-          {isLoading ? 'LOGGING IN...' : 'LOG IN'}
+          {isLoading ? <><LoadingIndicator label="Logging in" /> LOGGING IN...</> : 'LOG IN'}
         </Button>
 
         <Button type="button" variant="outlined" color="secondary" fullWidth startIcon={<Google />} onClick={handleGoogleLogin} disabled={isLoading}>
@@ -400,7 +425,7 @@ function CreateAccountScreen() {
         <TextField name="email" type="email" label="Email" placeholder="you@example.com" fullWidth />
         <TextField name="password" type="password" label="Password" placeholder="Create a password" fullWidth inputProps={{ minLength: 6 }} />
         {error && <div className="error-box">{error}</div>}
-        <Button type="submit" variant="contained" fullWidth disabled={isLoading}>{isLoading ? 'CREATING...' : 'CREATE ACCOUNT'}</Button>
+        <Button type="submit" variant="contained" fullWidth disabled={isLoading}>{isLoading ? <><LoadingIndicator label="Creating account" /> CREATING...</> : 'CREATE ACCOUNT'}</Button>
       </form>
     </div>
   )
@@ -447,7 +472,7 @@ function OwnerRegisterScreen() {
         <TextField name="email" type="email" label="Email" placeholder="you@example.com" fullWidth />
         <TextField name="password" type="password" label="Password" placeholder="Create a password" fullWidth inputProps={{ minLength: 6 }} />
         {error && <div className="error-box">{error}</div>}
-        <Button type="submit" variant="contained" fullWidth disabled={isLoading}>{isLoading ? 'CREATING...' : 'CREATE STORE ACCOUNT'}</Button>
+        <Button type="submit" variant="contained" fullWidth disabled={isLoading}>{isLoading ? <><LoadingIndicator label="Creating store" /> CREATING...</> : 'CREATE STORE ACCOUNT'}</Button>
       </form>
     </div>
   )
@@ -757,7 +782,7 @@ function StudentStoreBrowserScreen() {
                 <Button className={paymentMethod === 'Cash on Pickup' ? 'payment-option selected' : 'payment-option'} variant={paymentMethod === 'Cash on Pickup' ? 'contained' : 'outlined'} onClick={() => setPaymentMethod('Cash on Pickup')}>Cash on Pickup</Button>
                 <Button className={paymentMethod === 'GCash' ? 'payment-option selected' : 'payment-option'} variant={paymentMethod === 'GCash' ? 'contained' : 'outlined'} onClick={() => setPaymentMethod('GCash')}>GCash</Button>
               </div>
-              <Button variant="contained" fullWidth onClick={handleCheckout} disabled={isOrdering}>{isOrdering ? 'PLACING ORDER...' : 'PLACE ORDER'}</Button>
+              <Button variant="contained" fullWidth onClick={handleCheckout} disabled={isOrdering}>{isOrdering ? <><LoadingIndicator label="Placing order" /> PLACING ORDER...</> : 'PLACE ORDER'}</Button>
             </div>
           )}
 
@@ -875,7 +900,7 @@ function StudentOrdersScreen({ history }) {
             <div className="ticket-row"><strong>Ticket #{order.ticketNumber || order.id.slice(-6)}</strong><span>{history ? 'Completed order' : 'In queue'}</span></div>
             {!history && (() => {
               const estimate = getWaitEstimate(order)
-              return <div className="wait-time-row"><strong>{estimate.ready ? 'Ready for pickup' : `${estimate.minutes} min estimated wait`}</strong><span>{estimate.ready ? 'Come to the counter' : `${estimate.queueAhead} ticket${estimate.queueAhead === 1 ? '' : 's'} ahead`}</span></div>
+              return <><OrderProgressTracker status={order.status} /><div className="wait-time-row"><strong>{estimate.ready ? 'Ready for pickup' : `${estimate.minutes} min estimated wait`}</strong><span>{estimate.ready ? 'Come to the counter' : `${estimate.queueAhead} ticket${estimate.queueAhead === 1 ? '' : 's'} ahead`}</span></div></>
             })()}
             <p>{order.itemsDescription || 'Order items'}</p>
             <p>PHP {Number(order.total || 0)} · {order.paymentMethod || 'Payment not recorded'}</p>
@@ -1223,7 +1248,7 @@ function OwnerInventoryScreen() {
         </select>
 
         {message && <div className="success-box">{message}</div>}
-        <button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? 'SAVING...' : editingId ? 'UPDATE ITEM' : 'ADD ITEM'}</button>
+        <button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? <><LoadingIndicator label="Saving item" /> SAVING...</> : editingId ? 'UPDATE ITEM' : 'ADD ITEM'}</button>
         {editingId && <button className="secondary-button" type="button" onClick={cancelEditing}>CANCEL EDIT</button>}
       </form>
 

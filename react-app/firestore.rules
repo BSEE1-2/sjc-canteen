@@ -1,0 +1,58 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
+    }
+
+    function isStudent() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
+    }
+
+    function isAdmin() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.auth.uid == userId
+        && request.resource.data.role in ['student', 'owner'];
+      allow update: if isAdmin() || (
+        signedIn() && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /foodItems/{itemId} {
+      allow read: if signedIn();
+      allow create: if isOwner() && request.resource.data.storeId == request.auth.uid;
+      allow update, delete: if isOwner() && resource.data.storeId == request.auth.uid;
+    }
+
+    match /orders/{orderId} {
+      allow read: if signedIn() && (
+        resource.data.studentUiD == request.auth.uid ||
+        (isOwner() && resource.data.storeId == request.auth.uid) ||
+        isAdmin() ||
+        (isStudent() && resource.data.status in ['Pending', 'Accepted', 'Preparing', 'Ready for Pickup'])
+      );
+      allow create: if isStudent() && request.resource.data.studentUiD == request.auth.uid;
+      allow update: if (isOwner() && resource.data.storeId == request.auth.uid) || isAdmin();
+      allow delete: if isAdmin() ||
+        (isStudent() && resource.data.studentUiD == request.auth.uid) ||
+        (isOwner() && resource.data.storeId == request.auth.uid);
+    }
+
+    match /notifications/{notificationId} {
+      allow read, update: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isOwner();
+      allow delete: if false;
+    }
+  }
+}

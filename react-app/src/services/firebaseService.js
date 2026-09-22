@@ -13,12 +13,14 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   serverTimestamp,
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore'
 import { auth, db, firebaseReady } from '../firebase'
 
@@ -87,17 +89,78 @@ export async function createStudentAccount({ email, password, name, studentId })
   return credential.user
 }
 
+export async function createOwnerAccount({ email, password, name, storeName }) {
+  requireFirebase()
+  const credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
+  await updateProfile(credential.user, { displayName: name.trim() })
+  await setDoc(doc(db, 'users', credential.user.uid), {
+    uid: credential.user.uid,
+    name: name.trim(),
+    email: email.trim(),
+    role: 'owner',
+    storeName: storeName.trim() || `${name.trim()}'s Store`,
+    bannerImage: '',
+    logoImage: '',
+    createdAt: serverTimestamp(),
+  })
+  return credential.user
+}
+
 export async function getUserProfile(uid) {
   requireFirebase()
   const snapshot = await getDoc(doc(db, 'users', uid))
   return snapshot.exists() ? snapshot.data() : null
 }
 
-export function subscribeToFoodItems(onData, onError) {
+export function subscribeToAllUsers(onData, onError) {
   requireFirebase()
-  return onSnapshot(collection(db, 'foodItems'), (snapshot) => {
+  return onSnapshot(collection(db, 'users'), (snapshot) => {
     onData(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })))
   }, onError)
+}
+
+export async function deleteUserProfile(uid) {
+  requireFirebase()
+  await deleteDoc(doc(db, 'users', uid))
+}
+
+export function subscribeToOwnerStores(onData, onError) {
+  requireFirebase()
+  return onSnapshot(query(collection(db, 'users'), where('role', '==', 'owner')), (snapshot) => {
+    const stores = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
+    stores.sort((first, second) => {
+      const firstTime = first.createdAt?.toMillis?.() || 0
+      const secondTime = second.createdAt?.toMillis?.() || 0
+      return secondTime - firstTime
+    })
+    onData(stores)
+  }, onError)
+}
+
+export function subscribeToFoodItems(storeIdOrOnData, onDataMaybe, onErrorMaybe) {
+  requireFirebase()
+
+  if (typeof storeIdOrOnData === 'function') {
+    return onSnapshot(collection(db, 'foodItems'), (snapshot) => {
+      const items = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
+      items.sort((first, second) => {
+        const firstTime = first.createdAt?.toMillis?.() || 0
+        const secondTime = second.createdAt?.toMillis?.() || 0
+        return secondTime - firstTime
+      })
+      storeIdOrOnData(items)
+    }, onErrorMaybe || (() => {}))
+  }
+
+  return onSnapshot(query(collection(db, 'foodItems'), where('storeId', '==', storeIdOrOnData)), (snapshot) => {
+    const items = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
+    items.sort((first, second) => {
+      const firstTime = first.createdAt?.toMillis?.() || 0
+      const secondTime = second.createdAt?.toMillis?.() || 0
+      return secondTime - firstTime
+    })
+    onDataMaybe(items)
+  }, onErrorMaybe || (() => {}))
 }
 
 export function subscribeToStudentOrders(uid, onData, onError) {
@@ -108,28 +171,53 @@ export function subscribeToStudentOrders(uid, onData, onError) {
   }, onError)
 }
 
-export async function placeStudentOrder(cartItems, paymentMethod) {
+export function subscribeToStoreActiveOrders(storeId, onData, onError) {
+  requireFirebase()
+  const activeStatuses = ['Pending', 'Accepted', 'Preparing', 'Ready for Pickup']
+  const ordersQuery = query(
+    collection(db, 'orders'),
+    where('storeId', '==', storeId),
+    where('status', 'in', activeStatuses),
+  )
+
+  return onSnapshot(ordersQuery, (snapshot) => {
+    const orders = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
+    orders.sort((first, second) => {
+      const firstTime = first.timestamp?.toMillis?.() || 0
+      const secondTime = second.timestamp?.toMillis?.() || 0
+      return firstTime - secondTime
+    })
+    onData(orders)
+  }, onError)
+}
+
+export async function placeStudentOrder(cartItems, paymentMethod, storeId = '') {
   requireFirebase()
   if (!auth.currentUser) {
     throw new Error('You must be signed in to place an order.')
   }
 
   const profile = await getUserProfile(auth.currentUser.uid)
-  const total = cartItems.reduce((sum, item) => sum + item.price, 0)
+  const storeProfile = storeId ? await getUserProfile(storeId) : null
+  const total = cartItems.reduce((sum, item) => sum + Number(item.price || 0), 0)
+  const ticketNumber = String(Date.now()).slice(-6)
   const order = {
     studentUiD: auth.currentUser.uid,
     studentName: profile?.name || auth.currentUser.displayName || 'Student',
     studentId: profile?.studentId || '',
-    itemsDescription: cartItems.map((item) => `1x ${item.name}`).join(', '),
+    storeId: storeId || '',
+    storeName: storeProfile?.storeName || 'SJC Canteen',
+    itemsDescription: cartItems.map((item) => `1x ${item.title || item.name || 'Menu item'}`).join(', '),
     cartItems: cartItems.map((item) => ({
-      title: item.name,
+      title: item.title || item.name || 'Menu item',
       quantity: 1,
-      price: item.price,
+      price: Number(item.price || 0),
       category: item.category,
     })),
     total,
     paymentMethod,
     paymentStatus: paymentMethod === 'Cash on Pickup' ? 'Pay on pickup' : 'Pending confirmation',
+    ticketNumber,
     timestamp: serverTimestamp(),
     status: 'Pending',
   }
@@ -138,9 +226,13 @@ export async function placeStudentOrder(cartItems, paymentMethod) {
   return orderReference.id
 }
 
-export function subscribeToAllOrders(onData, onError) {
+export function subscribeToAllOrders(storeId, onData, onError) {
   requireFirebase()
-  return onSnapshot(collection(db, 'orders'), (snapshot) => {
+  const ordersQuery = storeId
+    ? query(collection(db, 'orders'), where('storeId', '==', storeId))
+    : query(collection(db, 'orders'))
+
+  return onSnapshot(ordersQuery, (snapshot) => {
     const orders = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
     orders.sort((first, second) => {
       const firstTime = first.timestamp?.toMillis?.() || 0
@@ -165,14 +257,20 @@ export async function markNotificationRead(notificationId) {
   await updateDoc(doc(db, 'notifications', notificationId), { isRead: true })
 }
 
-export async function addFoodItem(item) {
+export async function addFoodItem(item, storeIdOverride) {
   requireFirebase()
+  const storeOwnerId = storeIdOverride || auth.currentUser?.uid
+  if (!storeOwnerId) {
+    throw new Error('No store is available for this inventory update.')
+  }
+
   await addDoc(collection(db, 'foodItems'), {
     title: item.title,
+    description: String(item.description || '').trim(),
     price: Number(item.price),
     category: item.category,
-    networkImage: item.networkImage || '',
     isAvailable: true,
+    storeId: storeOwnerId,
     createdAt: serverTimestamp(),
   })
 }
@@ -181,9 +279,9 @@ export async function updateFoodItem(itemId, item) {
   requireFirebase()
   await updateDoc(doc(db, 'foodItems', itemId), {
     title: item.title,
+    description: String(item.description || '').trim(),
     price: Number(item.price),
     category: item.category,
-    networkImage: item.networkImage || '',
   })
 }
 
@@ -195,6 +293,22 @@ export async function toggleFoodAvailability(itemId, isAvailable) {
 export async function deleteFoodItem(itemId) {
   requireFirebase()
   await deleteDoc(doc(db, 'foodItems', itemId))
+}
+
+export async function clearStudentOrders(uid) {
+  requireFirebase()
+  const snapshot = await getDocs(query(collection(db, 'orders'), where('studentUiD', '==', uid)))
+  const batch = writeBatch(db)
+  snapshot.docs.forEach((item) => batch.delete(item.ref))
+  await batch.commit()
+}
+
+export async function clearStoreOrders(storeId) {
+  requireFirebase()
+  const snapshot = await getDocs(query(collection(db, 'orders'), where('storeId', '==', storeId)))
+  const batch = writeBatch(db)
+  snapshot.docs.forEach((item) => batch.delete(item.ref))
+  await batch.commit()
 }
 
 export async function updateUserProfile(uid, profile) {
@@ -214,7 +328,7 @@ export async function updateOrderStatus(orderId, status) {
     await addDoc(collection(db, 'notifications'), {
       userId: order.studentUiD,
       title: 'Order Update',
-      message: `Your order #${orderId.slice(0, 5)} is now ${status}`,
+      message: `Ticket #${order.ticketNumber || orderId.slice(-6)} is now ${status}`,
       timestamp: serverTimestamp(),
       isRead: false,
       type: 'order_update',

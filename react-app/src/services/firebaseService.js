@@ -166,6 +166,7 @@ export async function placeStudentOrder(cartItems, paymentMethod, storeId = '') 
   const profile = await getUserProfile(auth.currentUser.uid)
   const storeProfile = storeId ? await getUserProfile(storeId) : null
   const total = cartItems.reduce((sum, item) => sum + Number(item.price || 0), 0)
+  const ticketNumber = String(Date.now()).slice(-6)
   const order = {
     studentUiD: auth.currentUser.uid,
     studentName: profile?.name || auth.currentUser.displayName || 'Student',
@@ -182,6 +183,7 @@ export async function placeStudentOrder(cartItems, paymentMethod, storeId = '') 
     total,
     paymentMethod,
     paymentStatus: paymentMethod === 'Cash on Pickup' ? 'Pay on pickup' : 'Pending confirmation',
+    ticketNumber,
     timestamp: serverTimestamp(),
     status: 'Pending',
   }
@@ -190,9 +192,13 @@ export async function placeStudentOrder(cartItems, paymentMethod, storeId = '') 
   return orderReference.id
 }
 
-export function subscribeToAllOrders(onData, onError) {
+export function subscribeToAllOrders(storeId, onData, onError) {
   requireFirebase()
-  return onSnapshot(collection(db, 'orders'), (snapshot) => {
+  const ordersQuery = storeId
+    ? query(collection(db, 'orders'), where('storeId', '==', storeId))
+    : query(collection(db, 'orders'))
+
+  return onSnapshot(ordersQuery, (snapshot) => {
     const orders = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
     orders.sort((first, second) => {
       const firstTime = first.timestamp?.toMillis?.() || 0
@@ -272,7 +278,7 @@ export async function updateOrderStatus(orderId, status) {
     await addDoc(collection(db, 'notifications'), {
       userId: order.studentUiD,
       title: 'Order Update',
-      message: `Your order #${orderId.slice(0, 5)} is now ${status}`,
+      message: `Ticket #${order.ticketNumber || orderId.slice(-6)} is now ${status}`,
       timestamp: serverTimestamp(),
       isRead: false,
       type: 'order_update',

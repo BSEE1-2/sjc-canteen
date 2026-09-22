@@ -24,6 +24,68 @@
   padding-bottom: 92px;
 }
 
+.live-notification {
+  position: fixed;
+  z-index: 10;
+  top: 14px;
+  left: 50%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  width: min(390px, calc(100% - 28px));
+  transform: translateX(-50%);
+  padding: 12px 12px 12px 14px;
+  border: 1px solid rgba(99, 160, 2, 0.22);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 14px 28px rgba(25, 29, 21, 0.18);
+  animation: notification-drop 260ms ease-out both;
+}
+
+@keyframes notification-drop {
+  from { opacity: 0; transform: translate(-50%, -12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.live-notification > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.live-notification strong {
+  color: #356000;
+  font-size: 0.78rem;
+}
+
+.live-notification span {
+  overflow: hidden;
+  color: rgba(25, 29, 21, 0.68);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-notification button {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 8px;
+  color: white;
+  background: #63a002;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.live-notification .notification-dismiss {
+  padding: 4px 6px;
+  color: rgba(25, 29, 21, 0.55);
+  background: transparent;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 .dashboard-screen {
   min-height: calc(100vh - 92px);
 }
@@ -851,6 +913,24 @@
   justify-content: space-between;
   gap: 12px;
   align-items: center;
+}
+
+.ticket-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-left: 4px solid #63a002;
+  border-radius: 8px;
+  background: rgba(99, 160, 2, 0.08);
+  color: #356000;
+  font-size: 0.82rem;
+}
+
+.ticket-row span {
+  color: rgba(25, 29, 21, 0.58);
+  font-size: 0.74rem;
 }
 
 .status {

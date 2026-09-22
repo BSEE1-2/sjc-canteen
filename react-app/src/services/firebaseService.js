@@ -13,12 +13,14 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   serverTimestamp,
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore'
 import { auth, db, firebaseReady } from '../firebase'
 
@@ -110,6 +112,18 @@ export async function getUserProfile(uid) {
   return snapshot.exists() ? snapshot.data() : null
 }
 
+export function subscribeToAllUsers(onData, onError) {
+  requireFirebase()
+  return onSnapshot(collection(db, 'users'), (snapshot) => {
+    onData(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })))
+  }, onError)
+}
+
+export async function deleteUserProfile(uid) {
+  requireFirebase()
+  await deleteDoc(doc(db, 'users', uid))
+}
+
 export function subscribeToOwnerStores(onData, onError) {
   requireFirebase()
   return onSnapshot(query(collection(db, 'users'), where('role', '==', 'owner')), (snapshot) => {
@@ -154,6 +168,26 @@ export function subscribeToStudentOrders(uid, onData, onError) {
   const ordersQuery = query(collection(db, 'orders'), where('studentUiD', '==', uid))
   return onSnapshot(ordersQuery, (snapshot) => {
     onData(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })))
+  }, onError)
+}
+
+export function subscribeToStoreActiveOrders(storeId, onData, onError) {
+  requireFirebase()
+  const activeStatuses = ['Pending', 'Accepted', 'Preparing', 'Ready for Pickup']
+  const ordersQuery = query(
+    collection(db, 'orders'),
+    where('storeId', '==', storeId),
+    where('status', 'in', activeStatuses),
+  )
+
+  return onSnapshot(ordersQuery, (snapshot) => {
+    const orders = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
+    orders.sort((first, second) => {
+      const firstTime = first.timestamp?.toMillis?.() || 0
+      const secondTime = second.timestamp?.toMillis?.() || 0
+      return firstTime - secondTime
+    })
+    onData(orders)
   }, onError)
 }
 
@@ -259,6 +293,22 @@ export async function toggleFoodAvailability(itemId, isAvailable) {
 export async function deleteFoodItem(itemId) {
   requireFirebase()
   await deleteDoc(doc(db, 'foodItems', itemId))
+}
+
+export async function clearStudentOrders(uid) {
+  requireFirebase()
+  const snapshot = await getDocs(query(collection(db, 'orders'), where('studentUiD', '==', uid)))
+  const batch = writeBatch(db)
+  snapshot.docs.forEach((item) => batch.delete(item.ref))
+  await batch.commit()
+}
+
+export async function clearStoreOrders(storeId) {
+  requireFirebase()
+  const snapshot = await getDocs(query(collection(db, 'orders'), where('storeId', '==', storeId)))
+  const batch = writeBatch(db)
+  snapshot.docs.forEach((item) => batch.delete(item.ref))
+  await batch.commit()
 }
 
 export async function updateUserProfile(uid, profile) {

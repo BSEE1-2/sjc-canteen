@@ -127,7 +127,8 @@
 
 .profile-card input,
 .inventory-form input,
-.inventory-form select {
+.inventory-form select,
+.inventory-form textarea {
   width: 100%;
   border: 1px solid rgba(25, 29, 21, 0.14);
   border-radius: 10px;
@@ -573,13 +574,47 @@
 }
 
 .promo-panel {
+  position: relative;
   display: grid;
-  gap: 8px;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  overflow: hidden;
   color: white;
-  background: linear-gradient(135deg, #356000, #63a002);
-  border-radius: 22px;
-  padding: 22px;
+  background: #356000;
+  border-radius: 24px;
+  padding: 12px 16px 12px 12px;
   margin-bottom: 24px;
+  box-shadow: 0 16px 26px rgba(53, 96, 0, 0.16);
+}
+
+.promo-panel::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(53, 96, 0, 0.08), rgba(53, 96, 0, 0.22));
+}
+
+.promo-panel-image {
+  position: relative;
+  z-index: 1;
+  width: 92px;
+  height: 92px;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.promo-panel-content,
+.promo-count-badge {
+  position: relative;
+  z-index: 1;
+}
+
+.promo-panel-content {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
 }
 
 .promo-panel span,
@@ -588,9 +623,113 @@
 }
 
 .promo-panel strong {
-  max-width: 250px;
-  font-size: 1.4rem;
+  max-width: 220px;
+  font-size: 1.25rem;
   line-height: 1.25;
+}
+
+.promo-count-badge {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 64px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.14);
+  text-align: center;
+}
+
+.promo-count-badge strong {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.promo-count-badge span {
+  font-size: 0.62rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.store-list {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  margin: 0 -4px 22px;
+  padding: 4px 4px 10px;
+  scrollbar-width: none;
+}
+
+.store-list::-webkit-scrollbar {
+  display: none;
+}
+
+.store-tile {
+  position: relative;
+  display: grid;
+  flex: 0 0 164px;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(53, 96, 0, 0.12);
+  border-radius: 18px;
+  background: white;
+  color: #1a1c16;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(25, 29, 21, 0.06);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.store-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 24px rgba(25, 29, 21, 0.1);
+}
+
+.store-tile.active {
+  border: 2px solid #63a002;
+  box-shadow: 0 12px 22px rgba(99, 160, 2, 0.18);
+}
+
+.store-tile.active::after {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 9px;
+  height: 9px;
+  border: 3px solid white;
+  border-radius: 50%;
+  background: #63a002;
+  content: '';
+  box-shadow: 0 2px 6px rgba(25, 29, 21, 0.25);
+}
+
+.store-tile-image {
+  height: 94px;
+  background-position: center;
+  background-size: cover;
+  background-color: #dce9bf;
+}
+
+.store-tile-copy {
+  display: grid;
+  gap: 5px;
+  min-height: 72px;
+  padding: 12px;
+}
+
+.store-tile-copy strong {
+  overflow: hidden;
+  font-size: 0.92rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-tile-copy span {
+  overflow: hidden;
+  color: rgba(25, 29, 21, 0.58);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .section-heading {
@@ -771,6 +910,27 @@
   object-fit: cover;
 }
 
+.food-card-text-only,
+.owner-item-text-only {
+  display: grid;
+  place-items: center;
+  color: white;
+  background: linear-gradient(135deg, #4d8200, #8bbd22);
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.food-card-text-only {
+  aspect-ratio: 1.2;
+}
+
+.owner-item-text-only {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  border-radius: 12px;
+}
+
 .food-card-content {
   padding: 12px;
 }
@@ -786,6 +946,14 @@
   margin: 5px 0 10px;
   font-size: 0.98rem;
   line-height: 1.25;
+}
+
+.food-card-content p {
+  min-height: 42px;
+  margin: 0 0 10px;
+  color: rgba(25, 29, 21, 0.68);
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .food-card-footer strong {

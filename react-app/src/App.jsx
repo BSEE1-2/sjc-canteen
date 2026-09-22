@@ -27,6 +27,7 @@ import {
   subscribeToOwnerStores,
   subscribeToStudentOrders,
   toggleFoodAvailability,
+  updateFoodItem,
   updateOrderStatus,
   updateUserProfile,
 } from './services/firebaseService'
@@ -438,12 +439,55 @@ function StudentNavigationScreen() {
 
   return (
     <div className="app-shell">
+      <StudentNotificationBanner />
       {views[tab]}
       <nav className="bottom-nav student-nav">
         {['Stores', 'Orders', 'History', 'Profile'].map((item) => (
           <Button key={item} className={tab === item ? 'nav-item active' : 'nav-item'} variant="text" onClick={() => setTab(item)}>{item}</Button>
         ))}
       </nav>
+    </div>
+  )
+}
+
+function StudentNotificationBanner() {
+  const navigate = useNavigate()
+  const [notification, setNotification] = useState(null)
+
+  useEffect(() => {
+    if (!auth) return undefined
+
+    let unsubscribeNotifications
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      unsubscribeNotifications?.()
+      if (!user) return
+      unsubscribeNotifications = subscribeToNotifications(user.uid, (notifications) => {
+        const unread = notifications.find((item) => !item.isRead)
+        setNotification(unread || null)
+      }, () => {})
+    })
+
+    return () => {
+      unsubscribeAuth()
+      unsubscribeNotifications?.()
+    }
+  }, [])
+
+  if (!notification) return null
+
+  const dismiss = async () => {
+    setNotification(null)
+    await markNotificationRead(notification.id)
+  }
+
+  return (
+    <div className="live-notification" role="status">
+      <div>
+        <strong>{notification.title || 'Order update'}</strong>
+        <span>{notification.message}</span>
+      </div>
+      <button type="button" onClick={() => navigate('/notifications')}>VIEW</button>
+      <button type="button" className="notification-dismiss" onClick={dismiss} aria-label="Dismiss notification">×</button>
     </div>
   )
 }
@@ -515,7 +559,7 @@ function StudentStoreBrowserScreen() {
       const orderId = await placeStudentOrder(cart, paymentMethod, selectedStoreId)
       setCart([])
       setCartOpen(false)
-      setOrderMessage(`Order #${orderId.slice(0, 5)} placed successfully from ${selectedStore?.storeName || 'the selected store'}.`)
+      setOrderMessage(`Ticket #${orderId.slice(-6)} placed successfully from ${selectedStore?.storeName || 'the selected store'}.`)
     } catch (orderError) {
       setOrderMessage(orderError.message || 'Unable to place order.')
     } finally {
@@ -651,6 +695,7 @@ function StudentOrdersScreen({ history }) {
         {visibleOrders.map((order) => (
           <article className="student-order" key={order.id}>
             <div className="order-heading"><strong>{order.storeName || 'Store'}</strong><span className="status">{order.status}</span></div>
+            <div className="ticket-row"><strong>Ticket #{order.ticketNumber || order.id.slice(-6)}</strong><span>{history ? 'Completed order' : 'In queue'}</span></div>
             <p>{order.itemsDescription || 'Order items'}</p>
             <p>PHP {Number(order.total || 0)} · {order.paymentMethod || 'Payment not recorded'}</p>
             <small>{order.studentId || ''}</small>
@@ -721,13 +766,15 @@ function StudentProfileScreen() {
 
 function NotificationsScreen() {
   const [notifications, setNotifications] = useState([])
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (!auth) return undefined
 
     let unsubscribeNotifications
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (user) unsubscribeNotifications = subscribeToNotifications(user.uid, setNotifications, () => {})
+      unsubscribeNotifications?.()
+      if (user) unsubscribeNotifications = subscribeToNotifications(user.uid, setNotifications, (notificationError) => setError(formatFirebaseError(notificationError)))
     })
 
     return () => {
@@ -739,6 +786,7 @@ function NotificationsScreen() {
   return (
     <div className="screen-shell dashboard-screen">
       <div className="page-heading"><span className="eyebrow">UPDATES</span><h1>Notifications</h1><p>Order updates and canteen announcements.</p></div>
+      {error && <div className="error-box">{error}</div>}
       <div className="order-list">
         {notifications.length === 0 && <div className="empty-panel">No notifications yet.</div>}
         {notifications.map((notification) => (
@@ -801,8 +849,8 @@ function OwnerDashboardScreen() {
       }
 
       setProfile(profileData)
-      unsubscribeOrders = subscribeToAllOrders((allOrders) => {
-        setOrders(allOrders.filter((order) => order.storeId === user.uid))
+      unsubscribeOrders = subscribeToAllOrders(user.uid, (allOrders) => {
+        setOrders(allOrders)
       }, (orderError) => setError(orderError.message))
 
       unsubscribeItems = subscribeToFoodItems(user.uid, (foodItems) => {
@@ -846,7 +894,8 @@ function OwnerDashboardScreen() {
         {orders.length === 0 && <div className="empty-panel">No orders yet. Add items to your inventory and students can start ordering here.</div>}
         {orders.map((order) => (
           <article className="owner-order" key={order.id}>
-            <div className="order-heading"><strong>{order.studentName || 'Student'}</strong><span className={`status status-${String(order.status).toLowerCase()}`}>{order.status}</span></div>
+            <div className="order-heading"><strong>Ticket #{order.ticketNumber || order.id.slice(-6)}</strong><span className={`status status-${String(order.status).toLowerCase()}`}>{order.status}</span></div>
+            <p>Student: {order.studentName || 'Student'}</p>
             <p>{order.itemsDescription}</p>
             <div className="order-heading"><strong>PHP {Number(order.total || 0)}</strong><span>{order.paymentMethod || 'Payment not recorded'}</span></div>
             {order.status === 'Pending' && <button className="primary-button" onClick={() => updateOrderStatus(order.id, 'Accepted')}>ACCEPT ORDER</button>}
@@ -864,11 +913,19 @@ function OwnerOrdersScreen() {
   useEffect(() => {
     if (!auth) return undefined
 
-    const unsubscribe = subscribeToAllOrders((allOrders) => {
-      setOrders(allOrders.filter((order) => order.storeId === auth.currentUser?.uid))
-    }, (orderError) => setError(orderError.message))
+    let unsubscribeOrders
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      unsubscribeOrders?.()
+      if (!user) return
+      unsubscribeOrders = subscribeToAllOrders(user.uid, (allOrders) => {
+        setOrders(allOrders)
+      }, (orderError) => setError(formatFirebaseError(orderError)))
+    })
 
-    return unsubscribe
+    return () => {
+      unsubscribeAuth()
+      unsubscribeOrders?.()
+    }
   }, [])
 
   const advance = async (order) => {
@@ -884,7 +941,8 @@ function OwnerOrdersScreen() {
         {orders.length === 0 && <div className="empty-panel">No orders yet.</div>}
         {orders.map((order) => (
           <article className="owner-order" key={order.id}>
-            <div className="order-heading"><strong>{order.studentName || 'Student'}</strong><span className="status">{order.status}</span></div>
+            <div className="order-heading"><strong>Ticket #{order.ticketNumber || order.id.slice(-6)}</strong><span className="status">{order.status}</span></div>
+            <p>Student: {order.studentName || 'Student'}</p>
             <p>{order.itemsDescription}</p>
             <div className="order-heading"><strong>PHP {Number(order.total || 0)}</strong><span>{order.paymentMethod || 'Payment not recorded'}</span></div>
             {order.status !== 'Completed' && <button className="primary-button" onClick={() => advance(order)}>MARK {order.status === 'Pending' ? 'ACCEPTED' : order.status === 'Accepted' ? 'PREPARING' : order.status === 'Preparing' ? 'READY' : 'COMPLETED'}</button>}
@@ -899,6 +957,7 @@ function OwnerInventoryScreen() {
   const [items, setItems] = useState([])
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [editingId, setEditingId] = useState('')
   const [form, setForm] = useState({ title: '', description: '', price: '', category: 'Meals' })
 
   useEffect(() => {
@@ -927,14 +986,36 @@ function OwnerInventoryScreen() {
       setMessage('')
       setIsSaving(true)
 
-      await addFoodItem(form, auth.currentUser.uid)
+      if (editingId) {
+        await updateFoodItem(editingId, form)
+      } else {
+        await addFoodItem(form, auth.currentUser.uid)
+      }
       setForm({ title: '', description: '', price: '', category: 'Meals' })
-      setMessage('Menu item added.')
+      setEditingId('')
+      setMessage(editingId ? 'Menu item updated.' : 'Menu item added.')
     } catch (errorMessage) {
       setMessage(formatFirebaseError(errorMessage, 'Unable to add the item.'))
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const startEditing = (item) => {
+    setEditingId(item.id)
+    setForm({
+      title: item.title || '',
+      description: item.description || '',
+      price: String(item.price || ''),
+      category: item.category || 'Meals',
+    })
+    setMessage('')
+  }
+
+  const cancelEditing = () => {
+    setEditingId('')
+    setForm({ title: '', description: '', price: '', category: 'Meals' })
+    setMessage('')
   }
 
   return (
@@ -951,7 +1032,8 @@ function OwnerInventoryScreen() {
         </select>
 
         {message && <div className="success-box">{message}</div>}
-        <button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? 'ADDING ITEM...' : 'ADD ITEM'}</button>
+        <button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? 'SAVING...' : editingId ? 'UPDATE ITEM' : 'ADD ITEM'}</button>
+        {editingId && <button className="secondary-button" type="button" onClick={cancelEditing}>CANCEL EDIT</button>}
       </form>
 
       <div className="order-list">
@@ -965,6 +1047,7 @@ function OwnerInventoryScreen() {
                 <p>{item.category} · {item.isAvailable === false ? 'Unavailable' : 'Available'}</p>
               </div>
             </div>
+            <button className="secondary-button" onClick={() => startEditing(item)}>EDIT ITEM</button>
             <button className="secondary-button" onClick={() => toggleFoodAvailability(item.id, item.isAvailable !== false)}>{item.isAvailable === false ? 'MAKE AVAILABLE' : 'MARK SOLD OUT'}</button>
             <button className="text-link" onClick={() => deleteFoodItem(item.id)}>DELETE ITEM</button>
           </article>

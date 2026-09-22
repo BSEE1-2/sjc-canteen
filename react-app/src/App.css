@@ -90,6 +90,53 @@
   min-height: calc(100vh - 92px);
 }
 
+.store-hero-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 22px;
+  border-radius: 22px;
+  color: white;
+  background: linear-gradient(135deg, #356000, #6ca807);
+  box-shadow: 0 16px 28px rgba(53, 96, 0, 0.16);
+}
+
+.store-hero-copy {
+  min-width: 0;
+}
+
+.store-hero-copy .eyebrow {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.store-hero-copy h1,
+.store-hero-copy p {
+  margin: 6px 0 0;
+}
+
+.store-hero-copy p {
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.4;
+}
+
+.store-hero-icon {
+  display: grid;
+  flex: 0 0 64px;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 18px;
+  color: #356000;
+  background: #f7f8dc;
+}
+
+.store-hero-icon svg {
+  font-size: 2.2rem;
+}
+
 .page-heading {
   margin: 8px 0 24px;
 }
@@ -240,6 +287,21 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.logo-easter-egg {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.logo-easter-egg:focus-visible {
+  outline: 2px solid #63a002;
+  outline-offset: 4px;
 }
 
 .brand-row {
@@ -408,6 +470,14 @@
   padding: 16px 18px;
   font-weight: 800;
   font-size: 1rem;
+}
+
+.compact-action {
+  width: auto;
+  justify-self: start;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 166, 0, 0.18);
+  font-size: 0.72rem;
 }
 
 .role-select-wrap {
@@ -764,11 +834,21 @@
   box-shadow: 0 2px 6px rgba(25, 29, 21, 0.25);
 }
 
-.store-tile-image {
+.store-tile-icon {
+  display: grid;
+  place-items: center;
   height: 94px;
-  background-position: center;
-  background-size: cover;
-  background-color: #dce9bf;
+  color: #356000;
+  background: linear-gradient(135deg, #eef6d9, #d8e9ae);
+}
+
+.store-tile-icon svg {
+  font-size: 3rem;
+}
+
+.store-tile.active .store-tile-icon {
+  color: white;
+  background: linear-gradient(135deg, #356000, #73ad0b);
 }
 
 .store-tile-copy {
@@ -933,6 +1013,24 @@
   font-size: 0.74rem;
 }
 
+.wait-time-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f4f8e8;
+  color: #356000;
+  font-size: 0.82rem;
+}
+
+.wait-time-row span {
+  color: rgba(25, 29, 21, 0.58);
+  font-size: 0.72rem;
+  text-align: right;
+}
+
 .status {
   border-radius: 999px;
   padding: 4px 8px;
@@ -1000,6 +1098,10 @@
   font-weight: 800;
 }
 
+.food-card-text-only svg {
+  font-size: 3.5rem;
+}
+
 .food-card-text-only {
   aspect-ratio: 1.2;
 }
@@ -1009,6 +1111,10 @@
   height: 72px;
   flex: 0 0 72px;
   border-radius: 12px;
+}
+
+.owner-item-text-only svg {
+  font-size: 2.2rem;
 }
 
 .food-card-content {

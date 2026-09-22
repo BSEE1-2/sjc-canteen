@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { Button, IconButton, TextField } from '@mui/material'
-import { AddShoppingCart, ArrowBack, Google, Visibility, VisibilityOff } from '@mui/icons-material'
+import { AddShoppingCart, ArrowBack, Fastfood, Google, LocalCafe, Restaurant, Storefront, Visibility, VisibilityOff } from '@mui/icons-material'
 
 import heroImage from './assets/hero.png'
 
@@ -11,9 +11,12 @@ const welcomeImage = '/onboarding_1.png'
 const canteenImage = '/canteen.jpg'
 import {
   addFoodItem,
+  clearStoreOrders,
+  clearStudentOrders,
   createOwnerAccount,
   createStudentAccount,
   deleteFoodItem,
+  deleteUserProfile,
   getUserProfile,
   loginWithGoogle,
   loginWithRole,
@@ -22,9 +25,11 @@ import {
   placeStudentOrder,
   requestPasswordReset,
   subscribeToAllOrders,
+  subscribeToAllUsers,
   subscribeToFoodItems,
   subscribeToNotifications,
   subscribeToOwnerStores,
+  subscribeToStoreActiveOrders,
   subscribeToStudentOrders,
   toggleFoodAvailability,
   updateFoodItem,
@@ -40,6 +45,12 @@ function formatFirebaseError(error, fallback = 'Something went wrong. Please try
   return error.message || fallback
 }
 
+function FoodCategoryIcon({ category }) {
+  if (category === 'Drinks') return <LocalCafe />
+  if (category === 'Snacks') return <Fastfood />
+  return <Restaurant />
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -49,11 +60,13 @@ function App() {
         <Route path="/login" element={<StudentLoginScreen />} />
         <Route path="/owner-login" element={<OwnerLoginScreen />} />
         <Route path="/owner-register" element={<OwnerRegisterScreen />} />
+        <Route path="/admin-login" element={<AdminLoginScreen />} />
         <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
         <Route path="/create-account" element={<CreateAccountScreen />} />
         <Route path="/notifications" element={<NotificationsScreen />} />
         <Route path="/student-home" element={<StudentNavigationScreen />} />
         <Route path="/owner-home" element={<OwnerNavigationScreen />} />
+        <Route path="/admin-home" element={<AdminNavigationScreen />} />
       </Routes>
     </BrowserRouter>
   )
@@ -112,11 +125,24 @@ function OnboardingScreen() {
 
 function RoleSelectionScreen() {
   const navigate = useNavigate()
+  const [logoClicks, setLogoClicks] = useState(0)
+
+  const handleLogoClick = () => {
+    const nextClickCount = logoClicks + 1
+    if (nextClickCount >= 5) {
+      setLogoClicks(0)
+      navigate('/admin-login')
+      return
+    }
+    setLogoClicks(nextClickCount)
+  }
 
   return (
     <div className="screen-shell">
       <div className="header-row">
-        <img className="brand-logo small" src={appLogo} alt="SJC Canteen" />
+        <button type="button" className="logo-easter-egg" onClick={handleLogoClick} aria-label="SJC Canteen logo">
+          <img className="brand-logo small" src={appLogo} alt="SJC Canteen" />
+        </button>
         <h2>SJC Canteen</h2>
       </div>
 
@@ -427,6 +453,95 @@ function OwnerRegisterScreen() {
   )
 }
 
+function AdminLoginScreen() {
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const submit = async (event) => {
+    event.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      await loginWithRole(email, password, 'admin')
+      navigate('/admin-home')
+    } catch (loginError) {
+      setError(loginError.message || 'Admin access was not granted.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="screen-shell login-shell">
+      <div className="login-header"><IconButton onClick={() => navigate('/role-selection')} aria-label="Go back"><ArrowBack /></IconButton></div>
+      <div className="login-illustration gradient-gold"><span>Administration</span></div>
+      <h1>Admin Login</h1>
+      <p className="subtitle">Manage accounts and database records.</p>
+      <form className="login-form" onSubmit={submit}>
+        <TextField label="Admin email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} fullWidth required />
+        <TextField label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} fullWidth required />
+        {error && <div className="error-box">{error}</div>}
+        <Button type="submit" variant="contained" fullWidth disabled={loading}>{loading ? 'LOGGING IN...' : 'ADMIN LOGIN'}</Button>
+      </form>
+    </div>
+  )
+}
+
+function AdminNavigationScreen() {
+  const [users, setUsers] = useState([])
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!auth) return undefined
+    let unsubscribeUsers
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      unsubscribeUsers?.()
+      if (!user) return
+      unsubscribeUsers = subscribeToAllUsers(setUsers, (userError) => setError(formatFirebaseError(userError)))
+    })
+    return () => {
+      unsubscribeAuth()
+      unsubscribeUsers?.()
+    }
+  }, [])
+
+  const removeUser = async (user) => {
+    if (!window.confirm(`Delete the ${user.role} profile for ${user.email || user.id}?`)) return
+    try {
+      await deleteUserProfile(user.id)
+      setError('')
+    } catch (deleteError) {
+      setError(formatFirebaseError(deleteError))
+    }
+  }
+
+  const logoutAdmin = async () => {
+    await logoutUser()
+    window.location.href = '/admin-login'
+  }
+
+  return (
+    <div className="screen-shell dashboard-screen">
+      <div className="page-heading"><span className="eyebrow">ADMINISTRATION</span><h1>Account Management</h1><p>Review active student and owner profiles.</p></div>
+      {error && <div className="error-box">{error}</div>}
+      <div className="order-list">
+        {users.filter((user) => user.role !== 'admin').map((user) => (
+          <article className="owner-order" key={user.id}>
+            <div className="order-heading"><strong>{user.name || user.email || 'Account'}</strong><span className="status">{user.role}</span></div>
+            <p>{user.email || 'No email recorded'}</p>
+            <p>{user.role === 'owner' ? user.storeName || 'Store owner' : user.studentId || 'Student account'}</p>
+            <button className="secondary-button" onClick={() => removeUser(user)}>DELETE PROFILE</button>
+          </article>
+        ))}
+      </div>
+      <button className="secondary-button" onClick={logoutAdmin}>LOG OUT</button>
+    </div>
+  )
+}
+
 function StudentNavigationScreen() {
   const [tab, setTab] = useState('Stores')
 
@@ -493,6 +608,7 @@ function StudentNotificationBanner() {
 }
 
 function StudentStoreBrowserScreen() {
+  const navigate = useNavigate()
   const [stores, setStores] = useState([])
   const [selectedStoreId, setSelectedStoreId] = useState('')
   const [menuItems, setMenuItems] = useState([])
@@ -590,13 +706,24 @@ function StudentStoreBrowserScreen() {
         </div>
       </div>
 
+      <button type="button" className="secondary-button compact-action" onClick={() => navigate('/notifications')}>NOTIFICATIONS &amp; ORDER HISTORY</button>
+      <button type="button" className="secondary-button compact-action" onClick={async () => {
+        if (!auth?.currentUser || !window.confirm('Clear your order history?')) return
+        try {
+          await clearStudentOrders(auth.currentUser.uid)
+          setOrderMessage('Your orders were cleared.')
+        } catch (clearError) {
+          setOrderMessage(formatFirebaseError(clearError))
+        }
+      }}>CLEAR ORDERS</button>
+
       {error && <div className="error-box">{error}</div>}
 
       <div className="store-list">
         {stores.length === 0 && <div className="empty-panel">No stores are available yet. New owners will appear here as soon as they register.</div>}
         {stores.map((store) => (
           <button type="button" key={store.id} className={selectedStoreId === store.id ? 'store-tile active' : 'store-tile'} onClick={() => selectStore(store.id)}>
-            <div className="store-tile-image" style={{ backgroundImage: `url(${store.bannerImage || heroImage})` }} />
+            <div className="store-tile-icon" aria-hidden="true"><Storefront /></div>
             <div className="store-tile-copy">
               <strong>{store.storeName || 'Store'}</strong>
               <span>{store.name || 'Owner'}</span>
@@ -640,7 +767,7 @@ function StudentStoreBrowserScreen() {
             {menuItems.length === 0 && <div className="empty-panel full-width-empty">This store has not added menu items yet. Inventory opens once the owner has uploaded their products.</div>}
             {menuItems.map((food) => (
               <article className="food-card" key={food.id}>
-                <div className="food-card-text-only" aria-hidden="true">{food.category?.charAt(0) || 'F'}</div>
+                <div className="food-card-text-only" aria-hidden="true"><FoodCategoryIcon category={food.category} /></div>
                 <div className="food-card-content">
                   <span>{food.category}</span>
                   <h3>{food.title || food.name}</h3>
@@ -661,7 +788,9 @@ function StudentStoreBrowserScreen() {
 
 function StudentOrdersScreen({ history }) {
   const [orders, setOrders] = useState([])
+  const [storeQueues, setStoreQueues] = useState({})
   const [error, setError] = useState('')
+  const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
     if (!auth) return undefined
@@ -679,8 +808,55 @@ function StudentOrdersScreen({ history }) {
     }
   }, [])
 
+  useEffect(() => {
+    if (history || orders.length === 0) {
+      setStoreQueues({})
+      return undefined
+    }
+
+    const storeIds = [...new Set(orders.map((order) => order.storeId).filter(Boolean))]
+    const queueData = {}
+    const unsubscribers = storeIds.map((storeId) => subscribeToStoreActiveOrders(storeId, (queue) => {
+      queueData[storeId] = queue
+      setStoreQueues({ ...queueData })
+    }, (queueError) => setError(formatFirebaseError(queueError))))
+
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe())
+  }, [history, orders])
+
+  useEffect(() => {
+    if (history) return undefined
+    const timer = window.setInterval(() => setNow(Date.now()), 60000)
+    return () => window.clearInterval(timer)
+  }, [history])
+
   const activeStatuses = ['Pending', 'Accepted', 'Preparing', 'Ready for Pickup']
   const visibleOrders = orders.filter((order) => (history ? !activeStatuses.includes(order.status) : activeStatuses.includes(order.status)))
+  const clearOrders = async () => {
+    if (!auth?.currentUser || !window.confirm('Clear your order history?')) return
+    try {
+      await clearStudentOrders(auth.currentUser.uid)
+      setOrders([])
+    } catch (clearError) {
+      setError(formatFirebaseError(clearError))
+    }
+  }
+
+  const getWaitEstimate = (order) => {
+    if (order.status === 'Ready for Pickup') return { minutes: 0, queueAhead: 0, ready: true }
+
+    const queue = storeQueues[order.storeId] || []
+    const orderTime = order.timestamp?.toMillis?.() || now
+    const queueAhead = queue.filter((queuedOrder) => queuedOrder.id !== order.id && (queuedOrder.timestamp?.toMillis?.() || now) < orderTime).length
+    const itemMinutes = (order.cartItems || []).reduce((total, item) => {
+      const categoryMinutes = item.category === 'Meals' ? 5 : item.category === 'Snacks' ? 2 : 1
+      return total + categoryMinutes * Number(item.quantity || 1)
+    }, 0)
+    const estimatedMinutes = 5 + itemMinutes + queueAhead * 5
+    const elapsedMinutes = Math.max(0, Math.floor((now - orderTime) / 60000))
+
+    return { minutes: Math.max(0, estimatedMinutes - elapsedMinutes), queueAhead, ready: false }
+  }
 
   return (
     <div className="screen-shell dashboard-screen">
@@ -689,6 +865,7 @@ function StudentOrdersScreen({ history }) {
         <h1>{history ? 'Order History' : 'Active Orders'}</h1>
         <p>{history ? 'Your previous canteen orders.' : 'Track your meals from order to pickup.'}</p>
       </div>
+      <button className="secondary-button compact-action" onClick={clearOrders}>CLEAR ORDERS</button>
       {error && <div className="error-box">{error}</div>}
       <div className="order-list">
         {visibleOrders.length === 0 && <div className="empty-panel">No {history ? 'past' : 'active'} orders yet.</div>}
@@ -696,6 +873,10 @@ function StudentOrdersScreen({ history }) {
           <article className="student-order" key={order.id}>
             <div className="order-heading"><strong>{order.storeName || 'Store'}</strong><span className="status">{order.status}</span></div>
             <div className="ticket-row"><strong>Ticket #{order.ticketNumber || order.id.slice(-6)}</strong><span>{history ? 'Completed order' : 'In queue'}</span></div>
+            {!history && (() => {
+              const estimate = getWaitEstimate(order)
+              return <div className="wait-time-row"><strong>{estimate.ready ? 'Ready for pickup' : `${estimate.minutes} min estimated wait`}</strong><span>{estimate.ready ? 'Come to the counter' : `${estimate.queueAhead} ticket${estimate.queueAhead === 1 ? '' : 's'} ahead`}</span></div>
+            })()}
             <p>{order.itemsDescription || 'Order items'}</p>
             <p>PHP {Number(order.total || 0)} · {order.paymentMethod || 'Payment not recorded'}</p>
             <small>{order.studentId || ''}</small>
@@ -868,6 +1049,15 @@ function OwnerDashboardScreen() {
   const revenue = orders.reduce((total, order) => total + Number(order.total || 0), 0)
   const pendingCount = orders.filter((order) => order.status === 'Pending').length
   const availableItems = items.filter((item) => item.isAvailable !== false).length
+  const clearOrders = async () => {
+    if (!auth?.currentUser || !window.confirm('Clear all orders for this store?')) return
+    try {
+      await clearStoreOrders(auth.currentUser.uid)
+      setOrders([])
+    } catch (clearError) {
+      setError(formatFirebaseError(clearError))
+    }
+  }
 
   return (
     <div className="screen-shell">
@@ -877,7 +1067,7 @@ function OwnerDashboardScreen() {
           <h1>{profile?.storeName || 'Your Store'}</h1>
           <p>Manage menus, inventory, and each active order in one place.</p>
         </div>
-        <div className="avatar large store-avatar">{(profile?.storeName || 'S').charAt(0).toUpperCase()}</div>
+        <div className="store-hero-icon" aria-hidden="true"><Storefront /></div>
       </div>
 
       {error && <div className="error-box">{error}</div>}
@@ -888,6 +1078,7 @@ function OwnerDashboardScreen() {
         <div className="metric-card"><span>Pending</span><strong>{pendingCount}</strong></div>
         <div className="metric-card"><span>Menu Items</span><strong>{availableItems}</strong></div>
       </div>
+      <button className="secondary-button compact-action" onClick={clearOrders}>CLEAR ORDERS</button>
 
       <div className="owner-order-list">
         <div className="section-heading"><h2>Incoming Orders</h2><span>{orders.length} total</span></div>
@@ -1040,7 +1231,7 @@ function OwnerInventoryScreen() {
         {items.map((item) => (
           <article className="owner-order" key={item.id}>
             <div className="owner-item-card">
-              <div className="owner-item-text-only" aria-hidden="true">{item.category?.charAt(0) || 'F'}</div>
+              <div className="owner-item-text-only" aria-hidden="true"><FoodCategoryIcon category={item.category} /></div>
               <div className="owner-item-copy">
                 <div className="order-heading"><strong>{item.title}</strong><span>PHP {Number(item.price || 0)}</span></div>
                 <p>{item.description || 'No description provided.'}</p>

@@ -14,11 +14,15 @@ service cloud.firestore {
       return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
     }
 
+    function isAdmin() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     match /users/{userId} {
       allow read: if signedIn();
       allow create: if signedIn() && request.auth.uid == userId;
-      allow update: if signedIn() && request.auth.uid == userId;
-      allow delete: if false;
+      allow update: if (signedIn() && request.auth.uid == userId) || isAdmin();
+      allow delete: if isAdmin();
     }
 
     match /foodItems/{itemId} {
@@ -30,11 +34,15 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow read: if signedIn() && (
         resource.data.studentUiD == request.auth.uid ||
-        (isOwner() && resource.data.storeId == request.auth.uid)
+        (isOwner() && resource.data.storeId == request.auth.uid) ||
+        isAdmin() ||
+        (isStudent() && resource.data.status in ['Pending', 'Accepted', 'Preparing', 'Ready for Pickup'])
       );
       allow create: if isStudent() && request.resource.data.studentUiD == request.auth.uid;
-      allow update: if isOwner() && resource.data.storeId == request.auth.uid;
-      allow delete: if false;
+      allow update: if (isOwner() && resource.data.storeId == request.auth.uid) || isAdmin();
+      allow delete: if isAdmin() ||
+        (isStudent() && resource.data.studentUiD == request.auth.uid) ||
+        (isOwner() && resource.data.storeId == request.auth.uid);
     }
 
     match /notifications/{notificationId} {

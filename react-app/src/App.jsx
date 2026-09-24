@@ -308,19 +308,19 @@ function RoleSelectionScreen() {
       <div className="role-select-wrap">
         <div className="role-card">
           <div className="role-emoji">🎓</div>
-          <h3>Student</h3>
+          <h3>Customer</h3>
           <p>Browse daily menus and pre-order your meals in minutes.</p>
           <Button variant="contained" fullWidth onClick={() => navigate('/login')}>
-            I am a Student
+            I am a Customer
           </Button>
         </div>
 
         <div className="role-card">
           <div className="role-emoji">🏪</div>
-          <h3>Canteen Owner</h3>
-          <p>Manage inventory, orders, and student payments from one place.</p>
+          <h3>Store</h3>
+          <p>Manage inventory, orders, and customer payments from one place.</p>
           <Button variant="outlined" color="secondary" fullWidth onClick={() => navigate('/owner-login')}>
-            I am an Owner
+            I represent a Store
           </Button>
         </div>
       </div>
@@ -377,14 +377,14 @@ function StudentLoginScreen() {
         <img className="brand-logo small" src={appLogo} alt="SJC Canteen" />
       </div>
 
-      <div className="login-illustration gradient-amber"><span>Student Login</span></div>
+      <div className="login-illustration gradient-amber"><span>Customer Login</span></div>
       <h1>Welcome Back!</h1>
       <p className="subtitle">Log in to your school ordering account</p>
 
       <form className="login-form" onSubmit={handleLogin}>
         <label>
-          <span>Student ID</span>
-          <TextField fullWidth label="Student ID or Email" value={studentId} onChange={(event) => setStudentId(event.target.value)} />
+          <span>Customer ID</span>
+          <TextField fullWidth label="Customer ID or Email" value={studentId} onChange={(event) => setStudentId(event.target.value)} />
         </label>
 
         <label>
@@ -466,8 +466,8 @@ function OwnerLoginScreen() {
         <IconButton color="primary" onClick={() => navigate('/role-selection')} aria-label="Go back"><ArrowBack /></IconButton>
         <img className="brand-logo small" src={appLogo} alt="SJC Canteen" />
       </div>
-      <div className="login-illustration gradient-amber"><span>Owner Access</span></div>
-      <h1>Owner Login</h1>
+      <div className="login-illustration gradient-amber"><span>Store Access</span></div>
+      <h1>Store Login</h1>
       <p className="subtitle">Manage your canteen orders and inventory</p>
 
       <form className="login-form" onSubmit={handleLogin}>
@@ -557,13 +557,13 @@ function CreateAccountScreen() {
         <IconButton color="primary" onClick={() => navigate('/login')} aria-label="Go back"><ArrowBack /></IconButton>
       </div>
       <h1>Create Account</h1>
-      <p className="subtitle">Register your student account to start ordering.</p>
+      <p className="subtitle">Register your customer account to start ordering.</p>
 
       <form className="login-form" onSubmit={handleSubmit}>
         <TextField name="name" label="Full Name" placeholder="Your full name" fullWidth />
         <TextField
           name="studentId"
-          label="Student ID"
+          label="Customer ID"
           placeholder="06-2526-004154"
           fullWidth
           required
@@ -611,10 +611,10 @@ function OwnerRegisterScreen() {
       </div>
       <div className="login-illustration gradient-gold"><span>Open Your Store</span></div>
       <h1>Create Store</h1>
-      <p className="subtitle">Register your canteen and start selling to students.</p>
+      <p className="subtitle">Register your store and start serving customers.</p>
 
       <form className="login-form" onSubmit={handleSubmit}>
-        <TextField name="name" label="Owner Name" placeholder="Your full name" fullWidth />
+        <TextField name="name" label="Store Representative" placeholder="Your full name" fullWidth />
         <TextField name="storeName" label="Store Name" placeholder="e.g. Green Bowl Canteen" fullWidth />
         <TextField name="email" type="email" label="Email" placeholder="you@example.com" fullWidth />
         <TextField name="password" type="password" label="Password" placeholder="Create a password" fullWidth inputProps={{ minLength: 6 }} />
@@ -758,7 +758,7 @@ function AdminNavigationScreen() {
           <article className="owner-order" key={user.id}>
             <div className="order-heading"><strong>{user.name || user.email || 'Account'}</strong><span className="status">{user.role}</span></div>
             <p>{user.email || 'No email recorded'}</p>
-            <p>{user.role === 'owner' ? user.storeName || 'Store owner' : user.studentId || 'Student account'}</p>
+            <p>{user.role === 'owner' ? user.storeName || 'Store' : user.studentId || 'Customer account'}</p>
             {user.role === 'owner' && <p>Approval: {user.status || 'pending'}</p>}
             <div className="header-action-group">
               <button className="secondary-button" onClick={() => startEditing(user)}>EDIT DATA</button>
@@ -779,7 +779,7 @@ function AdminNavigationScreen() {
             <MenuItem value="owner">Owner</MenuItem>
             <MenuItem value="admin">Admin</MenuItem>
           </TextField>
-          {editForm.role === 'student' && <TextField margin="dense" label="Student ID" value={editForm.studentId} onChange={(event) => setEditForm({ ...editForm, studentId: event.target.value })} fullWidth />}
+          {editForm.role === 'student' && <TextField margin="dense" label="Customer ID" value={editForm.studentId} onChange={(event) => setEditForm({ ...editForm, studentId: event.target.value })} fullWidth />}
           {editForm.role === 'owner' && <TextField margin="dense" label="Store name" value={editForm.storeName} onChange={(event) => setEditForm({ ...editForm, storeName: event.target.value })} fullWidth />}
         </DialogContent>
         <DialogActions>
@@ -1190,17 +1190,17 @@ function StudentProfileScreen() {
   }
 
   if (!authReady) {
-    return <div className="screen-shell dashboard-screen"><div className="page-heading"><span className="eyebrow">ACCOUNT</span><h1>Student Profile</h1><p>Loading your account...</p></div></div>
+    return <div className="screen-shell dashboard-screen"><div className="page-heading"><span className="eyebrow">ACCOUNT</span><h1>Customer Profile</h1><p>Loading your account...</p></div></div>
   }
 
   return (
     <div className="screen-shell dashboard-screen">
-      <div className="page-heading"><span className="eyebrow">ACCOUNT</span><h1>Student Profile</h1><p>Manage your account details and preferences.</p></div>
+      <div className="page-heading"><span className="eyebrow">ACCOUNT</span><h1>Customer Profile</h1><p>Manage your account details and preferences.</p></div>
       <div className="profile-card">
         <div className="avatar large">{(name || 'S').charAt(0).toUpperCase()}</div>
         <label><span>Full Name</span><input value={name} onChange={(event) => setName(event.target.value)} /></label>
         <label><span>Email</span><input value={profile?.email || auth?.currentUser?.email || ''} disabled /></label>
-        <label><span>Student ID</span><input value={profile?.studentId || ''} disabled /></label>
+        <label><span>Customer ID</span><input value={profile?.studentId || ''} disabled /></label>
         <button className="secondary-button" onClick={() => navigate('/notifications')}>NOTIFICATIONS</button>
         <button className="primary-button" onClick={saveProfile}>SAVE PROFILE</button>
         {message && <div className="success-box">{message}</div>}
@@ -1354,7 +1354,7 @@ function OwnerDashboardScreen() {
         {orders.map((order) => (
           <article className="owner-order" key={order.id}>
             <div className="order-heading"><strong>Ticket #{order.ticketNumber || order.id.slice(-6)}</strong><span className={`status status-${String(order.status).toLowerCase()}`}>{order.status}</span></div>
-            <p>Student: {order.studentName || 'Student'}</p>
+            <p>Customer: {order.studentName || 'Customer'}</p>
             <p>{order.itemsDescription}</p>
             <div className="order-heading"><strong>PHP {Number(order.total || 0)}</strong><span>{order.paymentMethod || 'Payment not recorded'}</span></div>
             {order.status === 'Pending' && <button className="primary-button" onClick={() => updateOrderStatus(order.id, 'Accepted')}>ACCEPT ORDER</button>}
@@ -1401,7 +1401,7 @@ function OwnerOrdersScreen() {
         {orders.map((order) => (
           <article className="owner-order" key={order.id}>
             <div className="order-heading"><strong>Ticket #{order.ticketNumber || order.id.slice(-6)}</strong><span className="status">{order.status}</span></div>
-            <p>Student: {order.studentName || 'Student'}</p>
+            <p>Customer: {order.studentName || 'Customer'}</p>
             <p>{order.itemsDescription}</p>
             <div className="order-heading"><strong>PHP {Number(order.total || 0)}</strong><span>{order.paymentMethod || 'Payment not recorded'}</span></div>
             {order.status !== 'Completed' && <button className="primary-button" onClick={() => advance(order)}>MARK {order.status === 'Pending' ? 'ACCEPTED' : order.status === 'Accepted' ? 'PREPARING' : order.status === 'Preparing' ? 'READY' : 'COMPLETED'}</button>}
@@ -1532,10 +1532,10 @@ function OwnerProfileScreen() {
 
   return (
     <div className="screen-shell dashboard-screen">
-      <div className="page-heading"><span className="eyebrow">ACCOUNT</span><h1>Store Profile</h1><p>Manage your SJC Canteen owner account.</p></div>
+      <div className="page-heading"><span className="eyebrow">ACCOUNT</span><h1>Store Profile</h1><p>Manage your SJC Canteen store account.</p></div>
       <div className="profile-card">
         <div className="avatar large">{(profile?.storeName || 'O').charAt(0).toUpperCase()}</div>
-        <h2>{profile?.storeName || 'Canteen owner'}</h2>
+        <h2>{profile?.storeName || 'Store'}</h2>
         <p>{profile?.email || ''}</p>
         <p>{profile?.name || 'Owner'}</p>
         <button className="secondary-button" onClick={logoutOwner}>LOG OUT</button>

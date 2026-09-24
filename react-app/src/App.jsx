@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { onAuthStateChanged } from 'firebase/auth'
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, IconButton, MenuItem, Slide, TextField, Typography } from '@mui/material'
 import { AddShoppingCart, ArrowBack, Close, DeleteSweep, Fastfood, Google, History, LocalCafe, NotificationsNone, Restaurant, Send, SmartToy, Storefront, Visibility, VisibilityOff } from '@mui/icons-material'
@@ -157,7 +158,13 @@ function AssistantDrawer() {
                   animation: 'assistant-message-send 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
                 }}
               >
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>
+                {message.role === 'assistant' ? (
+                  <Box className="assistant-markdown">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </Box>
+                ) : (
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>
+                )}
               </Box>
             ))}
             {isLoading && (
@@ -554,8 +561,15 @@ function CreateAccountScreen() {
 
       <form className="login-form" onSubmit={handleSubmit}>
         <TextField name="name" label="Full Name" placeholder="Your full name" fullWidth />
-        <TextField name="studentId" label="Student ID" placeholder="06-2425-000000" fullWidth />
-        <TextField name="email" type="email" label="Email" placeholder="you@example.com" fullWidth />
+        <TextField
+          name="studentId"
+          label="Student ID"
+          placeholder="06-2526-004154"
+          fullWidth
+          required
+          slotProps={{ htmlInput: { inputMode: 'numeric', pattern: '\\d{2}-\\d{4}-\\d{6}', maxLength: 14, title: 'Use the format ##-####-######' } }}
+        />
+        <TextField name="email" type="email" label="Email" placeholder="yourname.sjc@phinmaed.com" fullWidth />
         <TextField name="password" type="password" label="Password" placeholder="Create a password" fullWidth inputProps={{ minLength: 6 }} />
         {error && <div className="error-box">{error}</div>}
         <Button type="submit" variant="contained" fullWidth disabled={isLoading}>{isLoading ? <><LoadingIndicator label="Creating account" /> CREATING...</> : 'CREATE ACCOUNT'}</Button>

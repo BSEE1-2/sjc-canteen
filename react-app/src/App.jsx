@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import { animated, useSpring, useTrail, useTransition } from '@react-spring/web'
 import { onAuthStateChanged } from 'firebase/auth'
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, IconButton, MenuItem, Slide, TextField, Typography } from '@mui/material'
 import { AddShoppingCart, ArrowBack, Close, DeleteSweep, Fastfood, Google, History, LocalCafe, NotificationsNone, Restaurant, Send, SmartToy, Storefront, Visibility, VisibilityOff } from '@mui/icons-material'
@@ -52,12 +53,21 @@ function FoodCategoryIcon({ category }) {
 }
 
 function LoadingIndicator({ label = 'Loading' }) {
+  const barStyles = useTrail(4, {
+    from: { height: 7, transform: 'translateY(0)' },
+    to: async (next) => {
+      while (true) {
+        await next({ height: 17, transform: 'translateY(-2px)' })
+        await next({ height: 10, transform: 'translateY(1px)' })
+        await next({ height: 7, transform: 'translateY(0)' })
+      }
+    },
+    config: { tension: 300, friction: 18 },
+  })
+
   return (
     <span className="m3-loading" role="status" aria-label={label}>
-      <span />
-      <span />
-      <span />
-      <span />
+      {barStyles.map((style, index) => <animated.span key={index} style={style} />)}
     </span>
   )
 }
@@ -70,6 +80,17 @@ function AssistantDrawer() {
   ])
   const [isLoading, setIsLoading] = useState(false)
   const [ollamaReady, setOllamaReady] = useState(null)
+  const assistantButtonSpring = useSpring({
+    from: { opacity: 0, transform: 'translateY(12px) scale(0.92)' },
+    to: { opacity: 1, transform: 'translateY(0) scale(1)' },
+    config: { tension: 280, friction: 22 },
+  })
+  const messageTransitions = useTransition(messages, {
+    keys: (message) => message.id,
+    from: { opacity: 0, transform: 'translateY(8px) scale(0.98)' },
+    enter: { opacity: 1, transform: 'translateY(0) scale(1)' },
+    config: { tension: 300, friction: 24 },
+  })
 
   useEffect(() => {
     if (!open) return undefined
@@ -111,14 +132,16 @@ function AssistantDrawer() {
 
   return (
     <>
-      <IconButton
-        color="primary"
-        onClick={() => setOpen(true)}
-        aria-label="Open SJC Canteen assistant"
-        sx={{ position: 'fixed', right: 20, bottom: 148, zIndex: 1100, width: 56, height: 56, p: 0, borderRadius: '50%', bgcolor: 'background.paper', boxShadow: 4 }}
-      >
-        <SmartToy />
-      </IconButton>
+      <animated.div style={{ ...assistantButtonSpring, position: 'fixed', right: 20, bottom: 148, zIndex: 1100 }}>
+        <IconButton
+          color="primary"
+          onClick={() => setOpen(true)}
+          aria-label="Open SJC Canteen assistant"
+          sx={{ width: 56, height: 56, p: 0, borderRadius: '50%', bgcolor: 'background.paper', boxShadow: 4 }}
+        >
+          <SmartToy />
+        </IconButton>
+      </animated.div>
       <Drawer
         anchor="right"
         open={open}
@@ -143,29 +166,27 @@ function AssistantDrawer() {
           </Typography>
           <Divider />
           <Box sx={{ flex: 1, overflowY: 'auto', p: 1, bgcolor: 'background.default', borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {messages.map((message) => (
-              <Box
-                key={message.id}
-                sx={{
-                  alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '86%',
-                  px: 1.5,
-                  py: 1,
-                  borderRadius: message.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                  bgcolor: message.role === 'user' ? 'primary.main' : 'background.paper',
-                  color: message.role === 'user' ? 'primary.contrastText' : message.error ? 'error.main' : 'text.primary',
-                  boxShadow: 1,
-                  animation: 'assistant-message-send 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
-                }}
-              >
-                {message.role === 'assistant' ? (
-                  <Box className="assistant-markdown">
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
-                  </Box>
-                ) : (
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>
-                )}
-              </Box>
+            {messageTransitions((style, message) => (
+              <animated.div key={message.id} style={{ ...style, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '86%' }}>
+                <Box
+                  sx={{
+                    px: 1.5,
+                    py: 1,
+                    borderRadius: message.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                    bgcolor: message.role === 'user' ? 'primary.main' : 'background.paper',
+                    color: message.role === 'user' ? 'primary.contrastText' : message.error ? 'error.main' : 'text.primary',
+                    boxShadow: 1,
+                  }}
+                >
+                  {message.role === 'assistant' ? (
+                    <Box className="assistant-markdown">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>
+                  )}
+                </Box>
+              </animated.div>
             ))}
             {isLoading && (
               <Box sx={{ alignSelf: 'flex-start', px: 1.5, py: 1, borderRadius: '16px 16px 16px 4px', bgcolor: 'background.paper', boxShadow: 1 }}>
@@ -197,6 +218,7 @@ function AssistantDrawer() {
 function OrderProgressTracker({ status }) {
   const stages = ['Pending', 'Accepted', 'Preparing', 'Ready for Pickup']
   const currentIndex = Math.max(0, stages.indexOf(status))
+  const progressLineStyle = useSpring({ from: { opacity: 0.45, transform: 'scaleX(0.5)' }, to: { opacity: 1, transform: 'scaleX(1)' }, config: { tension: 300, friction: 22 } })
 
   return (
     <div className="order-progress" aria-label={`Order progress: ${status}`}>
@@ -204,6 +226,7 @@ function OrderProgressTracker({ status }) {
         <div className={index <= currentIndex ? 'progress-stage complete' : 'progress-stage'} key={stage}>
           <span className="progress-dot" />
           <span>{stage === 'Ready for Pickup' ? 'Ready' : stage}</span>
+          {index < currentIndex && <animated.span className="progress-spring-line" style={progressLineStyle} />}
         </div>
       ))}
     </div>
@@ -213,7 +236,7 @@ function OrderProgressTracker({ status }) {
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <AnimatedRoutes>
         <Route path="/" element={<OnboardingScreen />} />
         <Route path="/role-selection" element={<RoleSelectionScreen />} />
         <Route path="/login" element={<StudentLoginScreen />} />
@@ -226,9 +249,21 @@ function App() {
         <Route path="/student-home" element={<StudentNavigationScreen />} />
         <Route path="/owner-home" element={<OwnerNavigationScreen />} />
         <Route path="/admin-home" element={<AdminNavigationScreen />} />
-      </Routes>
+      </AnimatedRoutes>
     </BrowserRouter>
   )
+}
+
+function AnimatedRoutes({ children }) {
+  const location = useLocation()
+  const routeStyle = useSpring({
+    key: location.pathname,
+    from: { opacity: 0, transform: 'translateY(10px)' },
+    to: { opacity: 1, transform: 'translateY(0)' },
+    config: { tension: 280, friction: 24 },
+  })
+
+  return <animated.div style={routeStyle}><Routes location={location}>{children}</Routes></animated.div>
 }
 
 function OnboardingScreen() {
@@ -242,6 +277,8 @@ function OnboardingScreen() {
   ]
 
   const slide = slides[page]
+  const cardStyle = useSpring({ key: page, from: { opacity: 0, transform: 'translateY(16px) scale(0.98)' }, to: { opacity: 1, transform: 'translateY(0) scale(1)' }, config: { tension: 260, friction: 24 } })
+  const imageStyle = useSpring({ from: { transform: 'scale(1)' }, to: { transform: 'scale(1.025)' }, loop: { reverse: true }, config: { duration: 4000 } })
 
   return (
     <div className="screen-shell onboarding-shell">
@@ -255,11 +292,11 @@ function OnboardingScreen() {
         )}
       </div>
 
-      <div className="onboarding-card">
-        <img className="onboarding-image" src={slide.image} alt="" />
+      <animated.div className="onboarding-card" style={cardStyle}>
+        <animated.img className="onboarding-image" style={imageStyle} src={slide.image} alt="" />
         <h1>{slide.title}</h1>
         <p>{slide.description}</p>
-      </div>
+      </animated.div>
 
       <div className="onboarding-dots" aria-label={`Introduction step ${page + 1} of ${slides.length}`}>
         {slides.map((item, index) => (
@@ -285,6 +322,12 @@ function OnboardingScreen() {
 function RoleSelectionScreen() {
   const navigate = useNavigate()
   const [logoClicks, setLogoClicks] = useState(0)
+  const roleCardStyles = useTrail(2, {
+    from: { opacity: 0, transform: 'translateY(16px) scale(0.98)' },
+    to: { opacity: 1, transform: 'translateY(0) scale(1)' },
+    delay: 80,
+    config: { tension: 260, friction: 24 },
+  })
 
   const handleLogoClick = () => {
     const nextClickCount = logoClicks + 1
@@ -306,23 +349,23 @@ function RoleSelectionScreen() {
       </div>
 
       <div className="role-select-wrap">
-        <div className="role-card">
+        <animated.div className="role-card" style={roleCardStyles[0]}>
           <div className="role-emoji">🎓</div>
           <h3>Customer</h3>
           <p>Browse daily menus and pre-order your meals in minutes.</p>
           <Button variant="contained" fullWidth onClick={() => navigate('/login')}>
             I am a Customer
           </Button>
-        </div>
+        </animated.div>
 
-        <div className="role-card">
+        <animated.div className="role-card" style={roleCardStyles[1]}>
           <div className="role-emoji">🏪</div>
           <h3>Store</h3>
           <p>Manage inventory, orders, and customer payments from one place.</p>
           <Button variant="outlined" color="secondary" fullWidth onClick={() => navigate('/owner-login')}>
             I represent a Store
           </Button>
-        </div>
+        </animated.div>
       </div>
     </div>
   )
@@ -797,6 +840,7 @@ function AdminNavigationScreen() {
 
 function StudentNavigationScreen() {
   const [tab, setTab] = useState('Stores')
+  const navStyle = useSpring({ from: { opacity: 0, transform: 'translateX(-50%) translateY(20px)' }, to: { opacity: 1, transform: 'translateX(-50%) translateY(0)' }, delay: 120, config: { tension: 260, friction: 24 } })
 
   const views = {
     Stores: <StudentStoreBrowserScreen />,
@@ -810,11 +854,11 @@ function StudentNavigationScreen() {
       <StudentNotificationBanner />
       {views[tab]}
       <AssistantDrawer />
-      <nav className="bottom-nav student-nav">
+      <animated.nav className="bottom-nav student-nav" style={navStyle}>
         {['Stores', 'Orders', 'History', 'Profile'].map((item) => (
           <Button key={item} className={tab === item ? 'nav-item active' : 'nav-item'} variant="text" onClick={() => setTab(item)}>{item}</Button>
         ))}
-      </nav>
+      </animated.nav>
     </div>
   )
 }
@@ -842,6 +886,8 @@ function StudentNotificationBanner() {
     }
   }, [])
 
+  const bannerStyle = useSpring({ from: { opacity: 0, transform: 'translateY(-14px)' }, to: { opacity: 1, transform: 'translateY(0)' }, config: { tension: 280, friction: 24 } })
+
   if (!notification) return null
 
   const dismiss = async () => {
@@ -850,14 +896,14 @@ function StudentNotificationBanner() {
   }
 
   return (
-    <div className="live-notification" role="status">
+    <animated.div className="live-notification" style={bannerStyle} role="status">
       <div>
         <strong>{notification.title || 'Order update'}</strong>
         <span>{notification.message}</span>
       </div>
       <button type="button" onClick={() => navigate('/notifications')}>VIEW</button>
       <button type="button" className="notification-dismiss" onClick={dismiss} aria-label="Dismiss notification">×</button>
-    </div>
+    </animated.div>
   )
 }
 
@@ -872,6 +918,11 @@ function StudentStoreBrowserScreen() {
   const [error, setError] = useState('')
   const [isOrdering, setIsOrdering] = useState(false)
   const [orderMessage, setOrderMessage] = useState('')
+  const foodCardStyles = useTrail(menuItems.length, {
+    from: { opacity: 0, transform: 'translateY(16px) scale(0.98)' },
+    to: { opacity: 1, transform: 'translateY(0) scale(1)' },
+    config: { tension: 260, friction: 24 },
+  })
 
   useEffect(() => {
     const unsubscribe = subscribeToOwnerStores((ownerStores) => {
@@ -1028,8 +1079,8 @@ function StudentStoreBrowserScreen() {
 
           <div className="food-grid">
             {menuItems.length === 0 && <div className="empty-panel full-width-empty">This store has not added menu items yet. Inventory opens once the owner has uploaded their products.</div>}
-            {menuItems.map((food) => (
-              <article className="food-card" key={food.id}>
+            {menuItems.map((food, index) => (
+              <animated.article className="food-card" style={foodCardStyles[index]} key={food.id}>
                 <div className="food-card-text-only" aria-hidden="true"><FoodCategoryIcon category={food.category} /></div>
                 <div className="food-card-content">
                   <span>{food.category}</span>
@@ -1040,7 +1091,7 @@ function StudentStoreBrowserScreen() {
                     <IconButton className="add-button" color="primary" onClick={() => addToCart(food)} aria-label={`Add ${food.title || food.name} to cart`}><AddShoppingCart /></IconButton>
                   </div>
                 </div>
-              </article>
+              </animated.article>
             ))}
           </div>
         </>
@@ -1257,6 +1308,7 @@ function NotificationsScreen() {
 
 function OwnerNavigationScreen() {
   const [tab, setTab] = useState('Dashboard')
+  const navStyle = useSpring({ from: { opacity: 0, transform: 'translateX(-50%) translateY(20px)' }, to: { opacity: 1, transform: 'translateX(-50%) translateY(0)' }, delay: 120, config: { tension: 260, friction: 24 } })
   const views = {
     Dashboard: <OwnerDashboardScreen />,
     Orders: <OwnerOrdersScreen />,
@@ -1268,11 +1320,11 @@ function OwnerNavigationScreen() {
     <div className="app-shell">
       {views[tab]}
       <AssistantDrawer />
-      <nav className="bottom-nav owner-nav">
+      <animated.nav className="bottom-nav owner-nav" style={navStyle}>
         {['Dashboard', 'Orders', 'Inventory', 'Profile'].map((item) => (
           <Button key={item} className={tab === item ? 'nav-item active' : 'nav-item'} variant="text" onClick={() => setTab(item)}>{item}</Button>
         ))}
-      </nav>
+      </animated.nav>
     </div>
   )
 }

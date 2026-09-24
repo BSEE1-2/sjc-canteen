@@ -305,6 +305,7 @@ export async function placeStudentOrder(cartItems, paymentMethod, storeId = '') 
   const order = {
     studentUiD: auth.currentUser.uid,
     studentName: profile?.name || auth.currentUser.displayName || 'Student',
+    studentEmail: profile?.email || auth.currentUser.email || '',
     studentId: profile?.studentId || '',
     storeId: storeId || '',
     storeName: storeProfile?.storeName || 'SJC Canteen',

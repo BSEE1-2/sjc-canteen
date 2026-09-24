@@ -25,6 +25,51 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+.assistant-markdown {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.assistant-markdown > :first-child {
+  margin-top: 0;
+}
+
+.assistant-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.assistant-markdown p,
+.assistant-markdown ul,
+.assistant-markdown ol,
+.assistant-markdown pre,
+.assistant-markdown blockquote {
+  margin: 0.45rem 0;
+}
+
+.assistant-markdown ul,
+.assistant-markdown ol {
+  padding-left: 1.25rem;
+}
+
+.assistant-markdown code {
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: rgba(99, 160, 2, 0.1);
+  font-size: 0.82em;
+}
+
+.assistant-markdown pre {
+  overflow-x: auto;
+  border-radius: 6px;
+  padding: 8px;
+  background: rgba(25, 29, 21, 0.08);
+}
+
+.assistant-markdown pre code {
+  padding: 0;
+  background: transparent;
+}
+
 @keyframes nav-rise {
   from { opacity: 0; transform: translate(-50%, 20px); }
   to { opacity: 1; transform: translate(-50%, 0); }

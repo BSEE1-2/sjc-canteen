@@ -1,7 +1,7 @@
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
-import { Button, IconButton, TextField } from '@mui/material'
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, TextField } from '@mui/material'
 import { AddShoppingCart, ArrowBack, Fastfood, Google, LocalCafe, Restaurant, Storefront, Visibility, VisibilityOff } from '@mui/icons-material'
 
 const appLogo = '/logoapp.png'
@@ -14,7 +14,7 @@ import {
   createOwnerAccount,
   createStudentAccount,
   deleteFoodItem,
-  deleteUserProfile,
+  deleteUserAccount,
   getUserProfile,
   loginWithGoogle,
   loginWithRole,
@@ -196,10 +196,12 @@ function RoleSelectionScreen() {
 
 function StudentLoginScreen() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [studentId, setStudentId] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [infoMessage] = useState(location.state?.message || '')
   const [isLoading, setIsLoading] = useState(false)
 
   const handleLogin = async (event) => {
@@ -270,6 +272,7 @@ function StudentLoginScreen() {
         </label>
 
         {error && <div className="error-box">{error}</div>}
+        {infoMessage && <div className="success-box">{infoMessage}</div>}
 
         <Button type="submit" variant="contained" fullWidth className="login-button" disabled={isLoading}>
           {isLoading ? <><LoadingIndicator label="Logging in" /> LOGGING IN...</> : 'LOG IN'}
@@ -289,9 +292,11 @@ function StudentLoginScreen() {
 
 function OwnerLoginScreen() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [infoMessage] = useState(location.state?.message || '')
   const [isLoading, setIsLoading] = useState(false)
 
   const handleLogin = async (event) => {
@@ -335,6 +340,7 @@ function OwnerLoginScreen() {
         <TextField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="owner@school.edu.ph" fullWidth />
         <TextField label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" fullWidth />
         {error && <div className="error-box">{error}</div>}
+        {infoMessage && <div className="success-box">{infoMessage}</div>}
 
         <Button type="submit" variant="contained" fullWidth className="login-button" disabled={isLoading}>
           {isLoading ? <><LoadingIndicator label="Logging in" /> LOGGING IN...</> : 'LOG IN'}
@@ -403,7 +409,7 @@ function CreateAccountScreen() {
         email: String(form.get('email') || ''),
         password: String(form.get('password') || ''),
       })
-      navigate('/student-home')
+      navigate('/login', { state: { message: 'Account created. Check your email and verify your address before signing in.' } })
     } catch (signupError) {
       setError(signupError.message || 'Unable to create the account.')
     } finally {
@@ -449,7 +455,7 @@ function OwnerRegisterScreen() {
         password: String(form.get('password') || ''),
         storeName: String(form.get('storeName') || ''),
       })
-      navigate('/owner-home')
+      navigate('/owner-login', { state: { message: 'Store account submitted. An administrator must approve it before you can sign in.' } })
     } catch (signupError) {
       setError(signupError.message || 'Unable to create the store account.')
     } finally {
@@ -516,30 +522,84 @@ function AdminLoginScreen() {
 }
 
 function AdminNavigationScreen() {
+  const navigate = useNavigate()
   const [users, setUsers] = useState([])
   const [error, setError] = useState('')
+  const [editingUser, setEditingUser] = useState(null)
+  const [editForm, setEditForm] = useState({ name: '', email: '', role: 'student', studentId: '', storeName: '' })
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (!auth) return undefined
     let unsubscribeUsers
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       unsubscribeUsers?.()
-      if (!user) return
+      if (!user) {
+        navigate('/admin-login', { replace: true })
+        return
+      }
+      const profile = await getUserProfile(user.uid)
+      if (profile?.role !== 'admin') {
+        navigate('/role-selection', { replace: true })
+        return
+      }
       unsubscribeUsers = subscribeToAllUsers(setUsers, (userError) => setError(formatFirebaseError(userError)))
     })
     return () => {
       unsubscribeAuth()
       unsubscribeUsers?.()
     }
-  }, [])
+  }, [navigate])
 
   const removeUser = async (user) => {
-    if (!window.confirm(`Delete the ${user.role} profile for ${user.email || user.id}?`)) return
+    if (!window.confirm(`Delete the ${user.role} account for ${user.email || user.id}? This also revokes Firebase Auth access.`)) return
     try {
-      await deleteUserProfile(user.id)
+      await deleteUserAccount(user.id)
       setError('')
     } catch (deleteError) {
       setError(formatFirebaseError(deleteError))
+    }
+  }
+
+  const setOwnerApproval = async (user, status) => {
+    try {
+      await updateUserProfile(user.id, { status })
+      setError('')
+    } catch (approvalError) {
+      setError(formatFirebaseError(approvalError))
+    }
+  }
+
+  const startEditing = (user) => {
+    setEditingUser(user)
+    setEditForm({
+      name: user.name || '',
+      email: user.email || '',
+      role: user.role || 'student',
+      studentId: user.studentId || '',
+      storeName: user.storeName || '',
+    })
+    setError('')
+  }
+
+  const saveUser = async () => {
+    if (!editingUser) return
+    setIsSaving(true)
+    try {
+      const profile = {
+        name: editForm.name.trim(),
+        email: editForm.email.trim(),
+        role: editForm.role,
+      }
+      if (editForm.role === 'student') profile.studentId = editForm.studentId.trim()
+      if (editForm.role === 'owner') profile.storeName = editForm.storeName.trim()
+      await updateUserProfile(editingUser.id, profile)
+      setEditingUser(null)
+      setError('')
+    } catch (updateError) {
+      setError(formatFirebaseError(updateError))
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -558,10 +618,34 @@ function AdminNavigationScreen() {
             <div className="order-heading"><strong>{user.name || user.email || 'Account'}</strong><span className="status">{user.role}</span></div>
             <p>{user.email || 'No email recorded'}</p>
             <p>{user.role === 'owner' ? user.storeName || 'Store owner' : user.studentId || 'Student account'}</p>
-            <button className="secondary-button" onClick={() => removeUser(user)}>DELETE PROFILE</button>
+            {user.role === 'owner' && <p>Approval: {user.status || 'pending'}</p>}
+            <div className="header-action-group">
+              <button className="secondary-button" onClick={() => startEditing(user)}>EDIT DATA</button>
+              {user.role === 'owner' && user.status !== 'approved' && <button className="primary-button" onClick={() => setOwnerApproval(user, 'approved')}>APPROVE OWNER</button>}
+              {user.role === 'owner' && user.status === 'approved' && <button className="secondary-button" onClick={() => setOwnerApproval(user, 'rejected')}>REJECT OWNER</button>}
+              <button className="secondary-button" onClick={() => removeUser(user)}>DELETE ACCOUNT</button>
+            </div>
           </article>
         ))}
       </div>
+      <Dialog open={Boolean(editingUser)} onClose={() => !isSaving && setEditingUser(null)} fullWidth maxWidth="sm">
+        <DialogTitle>Edit account data</DialogTitle>
+        <DialogContent>
+          <TextField margin="dense" label="Full name" value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} fullWidth />
+          <TextField margin="dense" label="Email" type="email" value={editForm.email} onChange={(event) => setEditForm({ ...editForm, email: event.target.value })} fullWidth />
+          <TextField margin="dense" select label="Role" value={editForm.role} onChange={(event) => setEditForm({ ...editForm, role: event.target.value })} fullWidth>
+            <MenuItem value="student">Student</MenuItem>
+            <MenuItem value="owner">Owner</MenuItem>
+            <MenuItem value="admin">Admin</MenuItem>
+          </TextField>
+          {editForm.role === 'student' && <TextField margin="dense" label="Student ID" value={editForm.studentId} onChange={(event) => setEditForm({ ...editForm, studentId: event.target.value })} fullWidth />}
+          {editForm.role === 'owner' && <TextField margin="dense" label="Store name" value={editForm.storeName} onChange={(event) => setEditForm({ ...editForm, storeName: event.target.value })} fullWidth />}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingUser(null)} disabled={isSaving}>Cancel</Button>
+          <Button onClick={saveUser} variant="contained" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save changes'}</Button>
+        </DialogActions>
+      </Dialog>
       <div className="header-action-group">
         <button className="secondary-button compact-action" onClick={logoutAdmin}>LOG OUT</button>
       </div>

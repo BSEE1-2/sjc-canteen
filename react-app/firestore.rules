@@ -7,7 +7,8 @@ service cloud.firestore {
     }
 
     function isOwner() {
-      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved';
     }
 
     function isStudent() {
@@ -19,12 +20,19 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (
+        userId == request.auth.uid ||
+        isAdmin() ||
+        (isOwner() && resource.data.role == 'owner') ||
+        (isStudent() && resource.data.role == 'owner' && resource.data.status == 'approved')
+      );
       allow create: if signedIn() && request.auth.uid == userId
-        && request.resource.data.role in ['student', 'owner'];
+        && ((request.resource.data.role == 'student' && request.resource.data.status == 'active')
+          || (request.resource.data.role == 'owner' && request.resource.data.status == 'pending'));
       allow update: if isAdmin() || (
         signedIn() && request.auth.uid == userId
         && request.resource.data.role == resource.data.role
+        && (resource.data.role != 'owner' || request.resource.data.status == resource.data.status)
       );
       allow delete: if isAdmin();
     }
@@ -39,8 +47,7 @@ service cloud.firestore {
       allow read: if signedIn() && (
         resource.data.studentUiD == request.auth.uid ||
         (isOwner() && resource.data.storeId == request.auth.uid) ||
-        isAdmin() ||
-        (isStudent() && resource.data.status in ['Pending', 'Accepted', 'Preparing', 'Ready for Pickup'])
+        isAdmin()
       );
       allow create: if isStudent() && request.resource.data.studentUiD == request.auth.uid;
       allow update: if (isOwner() && resource.data.storeId == request.auth.uid) || isAdmin();

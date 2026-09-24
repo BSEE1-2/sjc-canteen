@@ -187,6 +187,34 @@ export async function deleteUserAccount(uid) {
   await deleteAccount({ uid })
 }
 
+export async function askAssistant(question) {
+  const response = await fetch('/api/ollama/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: import.meta.env.VITE_OLLAMA_MODEL || 'gemma3:1b',
+      stream: false,
+      options: { temperature: 0.2, num_predict: 180 },
+      messages: [
+        {
+          role: 'system',
+          content: 'You are the SJC Canteen help assistant. Answer only questions about the app workflow: student ordering, owner inventory and orders, admin approval, account management, authentication, and troubleshooting. Use at most 3 short sentences or bullets. Never ask for, infer, or reveal passwords, API keys, Firebase data, user profiles, orders, or other private information. If unrelated, say you can only help with SJC Canteen.',
+        },
+        { role: 'user', content: question },
+      ],
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error('Local AI is unavailable. Start Ollama and run the selected model first.')
+  }
+
+  const result = await response.json()
+  const answer = result.message?.content?.trim()
+  if (!answer) throw new Error('Local AI returned no answer.')
+  return answer
+}
+
 export function subscribeToOwnerStores(onData, onError) {
   requireFirebase()
   return onSnapshot(query(collection(db, 'users'), where('role', '==', 'owner'), where('status', '==', 'approved')), (snapshot) => {

@@ -20,6 +20,11 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes assistant-message-send {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 @keyframes nav-rise {
   from { opacity: 0; transform: translate(-50%, 20px); }
   to { opacity: 1; transform: translate(-50%, 0); }

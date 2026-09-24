@@ -5,8 +5,10 @@ import {
   signInWithPopup,
   signInWithEmailAndPassword,
   signOut,
+  sendEmailVerification,
   updateProfile,
 } from 'firebase/auth'
+import { httpsCallable } from 'firebase/functions'
 import {
   addDoc,
   collection,
@@ -22,7 +24,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore'
-import { auth, db, firebaseReady } from '../firebase'
+import { auth, db, firebaseReady, functions } from '../firebase'
 
 function requireFirebase() {
   if (!firebaseReady || !auth || !db) {
@@ -35,15 +37,43 @@ export function normalizeStudentEmail(input) {
   return value.includes('@') ? value : `${value}@student.psjc.edu.ph`
 }
 
+const privilegedAdminEmail = 'admin@admin.com'
+const studentEmailPattern = /^[^\s@]+@phinmaed\.com$/i
+
+function requireStudentEmail(email) {
+  if (!studentEmailPattern.test(email)) {
+    throw new Error('Student accounts must use a valid @phinmaed.com email address.')
+  }
+}
+
 export async function loginWithRole(input, password, expectedRole) {
   requireFirebase()
   const email = expectedRole === 'student' ? normalizeStudentEmail(input) : input.trim()
   const credential = await signInWithEmailAndPassword(auth, email, password)
+
+  const isPrivilegedAdmin = expectedRole === 'admin' && email.toLowerCase() === privilegedAdminEmail
+  if (expectedRole === 'student' && !credential.user.emailVerified && !isPrivilegedAdmin) {
+    await signOut(auth)
+    throw new Error('Please verify your email address before signing in. Check your inbox for the verification link.')
+  }
+
   const profile = await getUserProfile(credential.user.uid)
 
   if (!profile || profile.role !== expectedRole) {
     await signOut(auth)
     throw new Error(`This account is not registered as a ${expectedRole} account.`)
+  }
+
+  if (expectedRole === 'owner' && profile.status !== 'approved') {
+    await signOut(auth)
+    throw new Error(profile.status === 'rejected'
+      ? 'Your owner application was not approved. Please contact the administrator.'
+      : 'Your owner application is awaiting administrator approval.')
+  }
+
+  if (profile.emailVerified !== true) {
+    await updateUserProfile(credential.user.uid, { emailVerified: true })
+    profile.emailVerified = true
   }
 
   return { user: credential.user, profile }
@@ -52,6 +82,14 @@ export async function loginWithRole(input, password, expectedRole) {
 export async function loginWithGoogle(expectedRole) {
   requireFirebase()
   const credential = await signInWithPopup(auth, new GoogleAuthProvider())
+  if (expectedRole === 'student') {
+    try {
+      requireStudentEmail(credential.user.email || '')
+    } catch (error) {
+      await signOut(auth)
+      throw error
+    }
+  }
   let profile = await getUserProfile(credential.user.uid)
 
   if (!profile && expectedRole === 'student') {
@@ -61,6 +99,7 @@ export async function loginWithGoogle(expectedRole) {
       email: credential.user.email || '',
       role: 'student',
       studentId: credential.user.email?.split('@')[0] || credential.user.uid.slice(0, 8),
+      status: 'active',
       createdAt: serverTimestamp(),
     }
     await setDoc(doc(db, 'users', credential.user.uid), profile)
@@ -71,39 +110,56 @@ export async function loginWithGoogle(expectedRole) {
     throw new Error(`This account is not registered as a ${expectedRole} account.`)
   }
 
+  if (expectedRole === 'owner' && profile.status !== 'approved') {
+    await signOut(auth)
+    throw new Error(profile.status === 'rejected'
+      ? 'Your owner application was not approved. Please contact the administrator.'
+      : 'Your owner application is awaiting administrator approval.')
+  }
+
   return { user: credential.user, profile }
 }
 
 export async function createStudentAccount({ email, password, name, studentId }) {
   requireFirebase()
-  const credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
+  const normalizedEmail = email.trim().toLowerCase()
+  requireStudentEmail(normalizedEmail)
+  const credential = await createUserWithEmailAndPassword(auth, normalizedEmail, password)
   await updateProfile(credential.user, { displayName: name.trim() })
   await setDoc(doc(db, 'users', credential.user.uid), {
     uid: credential.user.uid,
     name: name.trim(),
-    email: email.trim(),
+    email: normalizedEmail,
     role: 'student',
     studentId: studentId.trim(),
+    status: 'active',
+    emailVerified: false,
     createdAt: serverTimestamp(),
   })
-  return credential.user
+  await sendEmailVerification(credential.user)
+  await signOut(auth)
+  return { requiresEmailVerification: true }
 }
 
 export async function createOwnerAccount({ email, password, name, storeName }) {
   requireFirebase()
-  const credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
+  const normalizedEmail = email.trim().toLowerCase()
+  const credential = await createUserWithEmailAndPassword(auth, normalizedEmail, password)
   await updateProfile(credential.user, { displayName: name.trim() })
   await setDoc(doc(db, 'users', credential.user.uid), {
     uid: credential.user.uid,
     name: name.trim(),
-    email: email.trim(),
+    email: normalizedEmail,
     role: 'owner',
+    status: 'pending',
     storeName: storeName.trim() || `${name.trim()}'s Store`,
     bannerImage: '',
     logoImage: '',
+    emailVerified: true,
     createdAt: serverTimestamp(),
   })
-  return credential.user
+  await signOut(auth)
+  return { requiresApproval: true }
 }
 
 export async function getUserProfile(uid) {
@@ -124,9 +180,16 @@ export async function deleteUserProfile(uid) {
   await deleteDoc(doc(db, 'users', uid))
 }
 
+export async function deleteUserAccount(uid) {
+  requireFirebase()
+  if (!functions) throw new Error('Firebase Functions is not configured.')
+  const deleteAccount = httpsCallable(functions, 'deleteUserAccount')
+  await deleteAccount({ uid })
+}
+
 export function subscribeToOwnerStores(onData, onError) {
   requireFirebase()
-  return onSnapshot(query(collection(db, 'users'), where('role', '==', 'owner')), (snapshot) => {
+  return onSnapshot(query(collection(db, 'users'), where('role', '==', 'owner'), where('status', '==', 'approved')), (snapshot) => {
     const stores = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
     stores.sort((first, second) => {
       const firstTime = first.createdAt?.toMillis?.() || 0

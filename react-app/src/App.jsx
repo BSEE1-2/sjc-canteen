@@ -1,14 +1,15 @@
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, TextField } from '@mui/material'
-import { AddShoppingCart, ArrowBack, Fastfood, Google, LocalCafe, Restaurant, Storefront, Visibility, VisibilityOff } from '@mui/icons-material'
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, IconButton, MenuItem, Slide, TextField, Typography } from '@mui/material'
+import { AddShoppingCart, ArrowBack, Close, Fastfood, Google, LocalCafe, Restaurant, Send, SmartToy, Storefront, Visibility, VisibilityOff } from '@mui/icons-material'
 
 const appLogo = '/logoapp.png'
 const welcomeImage = '/onboarding_1.png'
 const canteenImage = '/canteen.jpg'
 import {
   addFoodItem,
+  askAssistant,
   clearStoreOrders,
   clearStudentOrders,
   createOwnerAccount,
@@ -57,6 +58,132 @@ function LoadingIndicator({ label = 'Loading' }) {
       <span />
       <span />
     </span>
+  )
+}
+
+function AssistantDrawer() {
+  const [open, setOpen] = useState(false)
+  const [question, setQuestion] = useState('')
+  const [messages, setMessages] = useState([
+    { id: 'welcome', role: 'assistant', content: 'Ask me how the app works.' },
+  ])
+  const [isLoading, setIsLoading] = useState(false)
+  const [ollamaReady, setOllamaReady] = useState(null)
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    let cancelled = false
+    fetch('/api/ollama/tags')
+      .then((response) => {
+        if (!response.ok) throw new Error('Ollama is unavailable')
+        return response.json()
+      })
+      .then(() => {
+        if (!cancelled) setOllamaReady(true)
+      })
+      .catch(() => {
+        if (!cancelled) setOllamaReady(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
+  const submitQuestion = async (event) => {
+    event.preventDefault()
+    if (!question.trim() || isLoading) return
+    const submittedQuestion = question.trim()
+    setQuestion('')
+    setMessages((current) => [...current, { id: `${Date.now()}-user`, role: 'user', content: submittedQuestion }])
+    setIsLoading(true)
+    try {
+      const response = await askAssistant(submittedQuestion)
+      setMessages((current) => [...current, { id: `${Date.now()}-assistant`, role: 'assistant', content: response }])
+    } catch (error) {
+      setMessages((current) => [...current, { id: `${Date.now()}-error`, role: 'assistant', content: error.message || 'The assistant is unavailable right now.', error: true }])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <IconButton
+        color="primary"
+        onClick={() => setOpen(true)}
+        aria-label="Open SJC Canteen assistant"
+        sx={{ position: 'fixed', right: 20, bottom: 148, zIndex: 1100, width: 56, height: 56, p: 0, borderRadius: '50%', bgcolor: 'background.paper', boxShadow: 4 }}
+      >
+        <SmartToy />
+      </IconButton>
+      <Drawer
+        anchor="right"
+        open={open}
+        onClose={() => setOpen(false)}
+        slots={{ transition: Slide }}
+        slotProps={{
+          transition: { direction: 'left', timeout: { enter: 280, exit: 220 } },
+          paper: { sx: { borderRadius: '24px 0 0 24px' } },
+        }}
+      >
+        <Box sx={{ width: { xs: 'min(100vw, 360px)', sm: 380 }, p: 3, display: 'flex', flexDirection: 'column', gap: 2, height: '100%', boxSizing: 'border-box' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <SmartToy color="primary" />
+              <Typography variant="h6" fontWeight={800}>Canteen Assistant</Typography>
+            </Box>
+            <IconButton onClick={() => setOpen(false)} aria-label="Close assistant"><Close /></IconButton>
+          </Box>
+          <Typography variant="body2" color="text.secondary">Brief answers about ordering, accounts, approvals, and app features.</Typography>
+          <Typography variant="caption" color={ollamaReady === false ? 'error.main' : 'success.main'}>
+            {ollamaReady === null ? 'Checking local AI connection...' : ollamaReady ? 'Local AI connected' : 'Ollama is offline. Start Ollama to ask questions.'}
+          </Typography>
+          <Divider />
+          <Box sx={{ flex: 1, overflowY: 'auto', p: 1, bgcolor: 'background.default', borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {messages.map((message) => (
+              <Box
+                key={message.id}
+                sx={{
+                  alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
+                  maxWidth: '86%',
+                  px: 1.5,
+                  py: 1,
+                  borderRadius: message.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                  bgcolor: message.role === 'user' ? 'primary.main' : 'background.paper',
+                  color: message.role === 'user' ? 'primary.contrastText' : message.error ? 'error.main' : 'text.primary',
+                  boxShadow: 1,
+                  animation: 'assistant-message-send 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
+                }}
+              >
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>
+              </Box>
+            ))}
+            {isLoading && (
+              <Box sx={{ alignSelf: 'flex-start', px: 1.5, py: 1, borderRadius: '16px 16px 16px 4px', bgcolor: 'background.paper', boxShadow: 1 }}>
+                <LoadingIndicator label="Assistant is typing" />
+              </Box>
+            )}
+          </Box>
+          <Box component="form" onSubmit={submitQuestion} sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
+            <TextField
+              fullWidth
+              multiline
+              maxRows={3}
+              size="small"
+              label="Ask a question"
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              inputProps={{ maxLength: 500 }}
+            />
+            <IconButton type="submit" color="primary" disabled={isLoading || !question.trim()} aria-label="Send question">
+              {isLoading ? <LoadingIndicator label="Asking assistant" /> : <Send />}
+            </IconButton>
+          </Box>
+        </Box>
+      </Drawer>
+    </>
   )
 }
 
@@ -649,6 +776,7 @@ function AdminNavigationScreen() {
       <div className="header-action-group">
         <button className="secondary-button compact-action" onClick={logoutAdmin}>LOG OUT</button>
       </div>
+      <AssistantDrawer />
     </div>
   )
 }
@@ -667,6 +795,7 @@ function StudentNavigationScreen() {
     <div className="app-shell">
       <StudentNotificationBanner />
       {views[tab]}
+      <AssistantDrawer />
       <nav className="bottom-nav student-nav">
         {['Stores', 'Orders', 'History', 'Profile'].map((item) => (
           <Button key={item} className={tab === item ? 'nav-item active' : 'nav-item'} variant="text" onClick={() => setTab(item)}>{item}</Button>
@@ -1108,6 +1237,7 @@ function OwnerNavigationScreen() {
   return (
     <div className="app-shell">
       {views[tab]}
+      <AssistantDrawer />
       <nav className="bottom-nav owner-nav">
         {['Dashboard', 'Orders', 'Inventory', 'Profile'].map((item) => (
           <Button key={item} className={tab === item ? 'nav-item active' : 'nav-item'} variant="text" onClick={() => setTab(item)}>{item}</Button>

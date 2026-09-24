@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-ro
 import { useEffect, useMemo, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, IconButton, MenuItem, Slide, TextField, Typography } from '@mui/material'
-import { AddShoppingCart, ArrowBack, Close, Fastfood, Google, LocalCafe, Restaurant, Send, SmartToy, Storefront, Visibility, VisibilityOff } from '@mui/icons-material'
+import { AddShoppingCart, ArrowBack, Close, DeleteSweep, Fastfood, Google, History, LocalCafe, NotificationsNone, Restaurant, Send, SmartToy, Storefront, Visibility, VisibilityOff } from '@mui/icons-material'
 
 const appLogo = '/logoapp.png'
 const welcomeImage = '/onboarding_1.png'
@@ -946,8 +946,12 @@ function StudentStoreBrowserScreen() {
         </div>
       </div>
 
-      <div className="header-action-group">
-        <button type="button" className="secondary-button compact-action" onClick={() => navigate('/notifications')}>NOTIFICATIONS &amp; ORDER HISTORY</button>
+      <div className="header-action-group student-action-group">
+        <button type="button" className="secondary-button compact-action" onClick={() => navigate('/notifications')}>
+          <NotificationsNone className="action-icon" aria-hidden="true" />
+          <span>NOTIFICATIONS &amp; ORDER HISTORY</span>
+          <History className="action-icon" aria-hidden="true" />
+        </button>
         <button type="button" className="secondary-button compact-action" onClick={async () => {
           if (!auth?.currentUser || !window.confirm('Clear your order history?')) return
           try {
@@ -956,7 +960,10 @@ function StudentStoreBrowserScreen() {
           } catch (clearError) {
             setOrderMessage(formatFirebaseError(clearError))
           }
-        }}>CLEAR ORDERS</button>
+        }}>
+          <DeleteSweep className="action-icon" aria-hidden="true" />
+          <span>CLEAR ORDERS</span>
+        </button>
       </div>
 
       {error && <div className="error-box">{error}</div>}

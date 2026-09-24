@@ -801,7 +801,7 @@ function StudentNavigationScreen() {
   const views = {
     Stores: <StudentStoreBrowserScreen />,
     Orders: <StudentOrdersScreen history={false} />,
-    History: <StudentOrdersScreen history />,
+    History: <StudentOrdersScreen history onBack={() => setTab('Stores')} />,
     Profile: <StudentProfileScreen />,
   }
 
@@ -1049,7 +1049,7 @@ function StudentStoreBrowserScreen() {
   )
 }
 
-function StudentOrdersScreen({ history }) {
+function StudentOrdersScreen({ history, onBack }) {
   const [orders, setOrders] = useState([])
   const [storeQueues, setStoreQueues] = useState({})
   const [error, setError] = useState('')
@@ -1124,6 +1124,7 @@ function StudentOrdersScreen({ history }) {
   return (
     <div className="screen-shell dashboard-screen">
       <div className="page-heading">
+        {history && <IconButton color="primary" onClick={onBack} aria-label="Back to stores"><ArrowBack /></IconButton>}
         <span className="eyebrow">SJC CANTEEN</span>
         <h1>{history ? 'Order History' : 'Active Orders'}</h1>
         <p>{history ? 'Your previous canteen orders.' : 'Track your meals from order to pickup.'}</p>
@@ -1211,6 +1212,7 @@ function StudentProfileScreen() {
 }
 
 function NotificationsScreen() {
+  const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [error, setError] = useState('')
 
@@ -1231,7 +1233,14 @@ function NotificationsScreen() {
 
   return (
     <div className="screen-shell dashboard-screen">
-      <div className="page-heading"><span className="eyebrow">UPDATES</span><h1>Notifications</h1><p>Order updates and canteen announcements.</p></div>
+      <div className="page-heading">
+        <IconButton color="primary" onClick={() => navigate(-1)} aria-label="Go back">
+          <ArrowBack />
+        </IconButton>
+        <span className="eyebrow">UPDATES</span>
+        <h1>Notifications</h1>
+        <p>Order updates and canteen announcements.</p>
+      </div>
       {error && <div className="error-box">{error}</div>}
       <div className="order-list">
         {notifications.length === 0 && <div className="empty-panel">No notifications yet.</div>}
@@ -1355,6 +1364,7 @@ function OwnerDashboardScreen() {
           <article className="owner-order" key={order.id}>
             <div className="order-heading"><strong>Ticket #{order.ticketNumber || order.id.slice(-6)}</strong><span className={`status status-${String(order.status).toLowerCase()}`}>{order.status}</span></div>
             <p>Customer: {order.studentName || 'Customer'}</p>
+            <p>Customer ID: {order.studentId || 'Not provided'} · {order.studentEmail || 'Email not provided'}</p>
             <p>{order.itemsDescription}</p>
             <div className="order-heading"><strong>PHP {Number(order.total || 0)}</strong><span>{order.paymentMethod || 'Payment not recorded'}</span></div>
             {order.status === 'Pending' && <button className="primary-button" onClick={() => updateOrderStatus(order.id, 'Accepted')}>ACCEPT ORDER</button>}
@@ -1402,6 +1412,7 @@ function OwnerOrdersScreen() {
           <article className="owner-order" key={order.id}>
             <div className="order-heading"><strong>Ticket #{order.ticketNumber || order.id.slice(-6)}</strong><span className="status">{order.status}</span></div>
             <p>Customer: {order.studentName || 'Customer'}</p>
+            <p>Customer ID: {order.studentId || 'Not provided'} · {order.studentEmail || 'Email not provided'}</p>
             <p>{order.itemsDescription}</p>
             <div className="order-heading"><strong>PHP {Number(order.total || 0)}</strong><span>{order.paymentMethod || 'Payment not recorded'}</span></div>
             {order.status !== 'Completed' && <button className="primary-button" onClick={() => advance(order)}>MARK {order.status === 'Pending' ? 'ACCEPTED' : order.status === 'Accepted' ? 'PREPARING' : order.status === 'Preparing' ? 'READY' : 'COMPLETED'}</button>}

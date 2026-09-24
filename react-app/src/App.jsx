@@ -1,10 +1,11 @@
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import ReactMarkdown from 'react-markdown'
 import { animated, useSpring, useTrail, useTransition } from '@react-spring/web'
 import { onAuthStateChanged } from 'firebase/auth'
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, IconButton, MenuItem, Slide, TextField, Typography } from '@mui/material'
-import { AddShoppingCart, ArrowBack, Close, DeleteSweep, Fastfood, Google, History, LocalCafe, NotificationsNone, Restaurant, Send, SmartToy, Storefront, Visibility, VisibilityOff } from '@mui/icons-material'
+import { AddShoppingCart, ArrowBack, Close, DeleteSweep, Fastfood, Google, History, LocalCafe, NotificationsNone, Person, ReceiptLong, Restaurant, Send, SmartToy, Storefront, Visibility, VisibilityOff } from '@mui/icons-material'
 
 const appLogo = '/logoapp.png'
 const welcomeImage = '/onboarding_1.png'
@@ -72,6 +73,142 @@ function LoadingIndicator({ label = 'Loading' }) {
   )
 }
 
+function BounceSurface({ children, className = '', style = {}, ...props }) {
+  return (
+    <div
+      {...props}
+      className={className}
+      style={style}
+    >
+      {children}
+    </div>
+  )
+}
+
+function BounceButton({ children, className, style, ...props }) {
+  const [isPressed, setIsPressed] = useState(false)
+  const buttonSpring = useSpring({
+    transform: isPressed ? 'scale(0.97)' : 'scale(1)',
+    config: { tension: 360, friction: 16 },
+  })
+
+  const triggerBounce = () => {
+    setIsPressed(true)
+    window.setTimeout(() => setIsPressed(false), 180)
+  }
+
+  return (
+    <animated.div style={{ ...buttonSpring, display: 'inline-flex', width: props.fullWidth ? '100%' : 'auto', ...style }}>
+      <Button
+        {...props}
+        className={className}
+        onPointerDown={(event) => {
+          setIsPressed(true)
+          props.onPointerDown?.(event)
+        }}
+        onPointerUp={(event) => {
+          setIsPressed(false)
+          props.onPointerUp?.(event)
+        }}
+        onPointerLeave={(event) => {
+          setIsPressed(false)
+          props.onPointerLeave?.(event)
+        }}
+        onClick={(event) => {
+          triggerBounce()
+          props.onClick?.(event)
+        }}
+      >
+        {children}
+      </Button>
+    </animated.div>
+  )
+}
+
+function BounceIconButton({ children, className, style, ...props }) {
+  const [isPressed, setIsPressed] = useState(false)
+  const buttonSpring = useSpring({
+    transform: isPressed ? 'scale(0.92)' : 'scale(1)',
+    config: { tension: 360, friction: 18 },
+  })
+
+  return (
+    <animated.div style={{ ...buttonSpring, display: 'inline-flex', ...style }}>
+      <IconButton
+        {...props}
+        className={className}
+        onPointerDown={(event) => {
+          setIsPressed(true)
+          props.onPointerDown?.(event)
+        }}
+        onPointerUp={(event) => {
+          setIsPressed(false)
+          props.onPointerUp?.(event)
+        }}
+        onPointerLeave={(event) => {
+          setIsPressed(false)
+          props.onPointerLeave?.(event)
+        }}
+        onClick={(event) => {
+          setIsPressed(true)
+          window.setTimeout(() => setIsPressed(false), 180)
+          props.onClick?.(event)
+        }}
+      >
+        {children}
+      </IconButton>
+    </animated.div>
+  )
+}
+
+function BounceNativeButton({ children, className = '', style = {}, ...props }) {
+  const [isPressed, setIsPressed] = useState(false)
+  const buttonSpring = useSpring({
+    transform: isPressed ? 'scale(0.97)' : 'scale(1)',
+    config: { tension: 360, friction: 16 },
+  })
+
+  return (
+    <animated.button
+      {...props}
+      className={className}
+      style={{ ...buttonSpring, ...style }}
+      onPointerDown={(event) => {
+        setIsPressed(true)
+        props.onPointerDown?.(event)
+      }}
+      onPointerUp={(event) => {
+        setIsPressed(false)
+        props.onPointerUp?.(event)
+      }}
+      onPointerLeave={(event) => {
+        setIsPressed(false)
+        props.onPointerLeave?.(event)
+      }}
+      onClick={(event) => {
+        setIsPressed(true)
+        window.setTimeout(() => setIsPressed(false), 180)
+        props.onClick?.(event)
+      }}
+    >
+      {children}
+    </animated.button>
+  )
+}
+
+function DashboardNavContent({ item, owner = false }) {
+  const icon = owner
+    ? { Dashboard: <Storefront />, Orders: <ReceiptLong />, Inventory: <Fastfood />, Profile: <Person /> }[item]
+    : { Stores: <Storefront />, Orders: <ReceiptLong />, History: <History />, Profile: <Person /> }[item]
+
+  return (
+    <>
+      <span className="nav-icon" aria-hidden="true">{icon}</span>
+      <span className="nav-label">{item}</span>
+    </>
+  )
+}
+
 function AssistantDrawer() {
   const [open, setOpen] = useState(false)
   const [question, setQuestion] = useState('')
@@ -132,15 +269,16 @@ function AssistantDrawer() {
 
   return (
     <>
-      <animated.div style={{ ...assistantButtonSpring, position: 'fixed', right: 20, bottom: 148, zIndex: 1100 }}>
-        <IconButton
+      <animated.div className="assistant-floating-launcher" style={assistantButtonSpring}>
+        <BounceIconButton
+          className="assistant-floating-button"
           color="primary"
           onClick={() => setOpen(true)}
           aria-label="Open SJC Canteen assistant"
           sx={{ width: 56, height: 56, p: 0, borderRadius: '50%', bgcolor: 'background.paper', boxShadow: 4 }}
         >
           <SmartToy />
-        </IconButton>
+        </BounceIconButton>
       </animated.div>
       <Drawer
         anchor="right"
@@ -158,7 +296,7 @@ function AssistantDrawer() {
               <SmartToy color="primary" />
               <Typography variant="h6" fontWeight={800}>Canteen Assistant</Typography>
             </Box>
-            <IconButton onClick={() => setOpen(false)} aria-label="Close assistant"><Close /></IconButton>
+            <BounceIconButton onClick={() => setOpen(false)} aria-label="Close assistant"><Close /></BounceIconButton>
           </Box>
           <Typography variant="body2" color="text.secondary">Brief answers about ordering, accounts, approvals, and app features.</Typography>
           <Typography variant="caption" color={ollamaReady === false ? 'error.main' : 'success.main'}>
@@ -205,9 +343,9 @@ function AssistantDrawer() {
               onChange={(event) => setQuestion(event.target.value)}
               inputProps={{ maxLength: 500 }}
             />
-            <IconButton type="submit" color="primary" disabled={isLoading || !question.trim()} aria-label="Send question">
+            <BounceIconButton type="submit" color="primary" disabled={isLoading || !question.trim()} aria-label="Send question">
               {isLoading ? <LoadingIndicator label="Asking assistant" /> : <Send />}
-            </IconButton>
+            </BounceIconButton>
           </Box>
         </Box>
       </Drawer>
@@ -281,14 +419,14 @@ function OnboardingScreen() {
   const imageStyle = useSpring({ from: { transform: 'scale(1)' }, to: { transform: 'scale(1.025)' }, loop: { reverse: true }, config: { duration: 4000 } })
 
   return (
-    <div className="screen-shell onboarding-shell">
+    <BounceSurface className="screen-shell onboarding-shell">
       <div className="brand-row">
         <img className="brand-logo" src={appLogo} alt="SJC Canteen" />
         <span>SJC Canteen</span>
         {page < slides.length - 1 && (
-          <Button className="skip-button" variant="text" onClick={() => navigate('/role-selection')}>
+          <BounceButton className="skip-button" variant="text" onClick={() => navigate('/role-selection')}>
             Skip
-          </Button>
+          </BounceButton>
         )}
       </div>
 
@@ -300,7 +438,7 @@ function OnboardingScreen() {
 
       <div className="onboarding-dots" aria-label={`Introduction step ${page + 1} of ${slides.length}`}>
         {slides.map((item, index) => (
-          <button
+          <BounceNativeButton
             key={item.title}
             type="button"
             className={index === page ? 'onboarding-dot active' : 'onboarding-dot'}
@@ -311,11 +449,11 @@ function OnboardingScreen() {
       </div>
 
       <div className="onboarding-actions">
-        <Button variant="contained" fullWidth onClick={() => (page === slides.length - 1 ? navigate('/role-selection') : setPage((current) => current + 1))}>
+        <BounceButton variant="contained" fullWidth onClick={() => (page === slides.length - 1 ? navigate('/role-selection') : setPage((current) => current + 1))}>
           {page === slides.length - 1 ? 'Get Started' : 'Continue'}
-        </Button>
+        </BounceButton>
       </div>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -340,11 +478,11 @@ function RoleSelectionScreen() {
   }
 
   return (
-    <div className="screen-shell role-shell">
+    <BounceSurface className="screen-shell role-shell">
       <div className="header-row">
-        <button type="button" className="logo-easter-egg" onClick={handleLogoClick} aria-label="SJC Canteen logo">
+        <BounceNativeButton type="button" className="logo-easter-egg" onClick={handleLogoClick} aria-label="SJC Canteen logo">
           <img className="brand-logo small" src={appLogo} alt="SJC Canteen" />
-        </button>
+        </BounceNativeButton>
         <h2>SJC Canteen</h2>
       </div>
 
@@ -353,21 +491,21 @@ function RoleSelectionScreen() {
           <div className="role-emoji">🎓</div>
           <h3>Customer</h3>
           <p>Browse daily menus and pre-order your meals in minutes.</p>
-          <Button variant="contained" fullWidth onClick={() => navigate('/login')}>
+          <BounceButton variant="contained" fullWidth onClick={() => navigate('/login')}>
             I am a Customer
-          </Button>
+          </BounceButton>
         </animated.div>
 
         <animated.div className="role-card" style={roleCardStyles[1]}>
           <div className="role-emoji">🏪</div>
           <h3>Store</h3>
           <p>Manage inventory, orders, and customer payments from one place.</p>
-          <Button variant="outlined" color="secondary" fullWidth onClick={() => navigate('/owner-login')}>
+          <BounceButton variant="outlined" color="secondary" fullWidth onClick={() => navigate('/owner-login')}>
             I represent a Store
-          </Button>
+          </BounceButton>
         </animated.div>
       </div>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -414,9 +552,9 @@ function StudentLoginScreen() {
   }
 
   return (
-    <div className="screen-shell login-shell">
+    <BounceSurface className="screen-shell login-shell">
       <div className="login-header">
-        <IconButton color="primary" onClick={() => navigate('/role-selection')} aria-label="Go back"><ArrowBack /></IconButton>
+        <BounceIconButton color="primary" onClick={() => navigate('/role-selection')} aria-label="Go back"><ArrowBack /></BounceIconButton>
         <img className="brand-logo small" src={appLogo} alt="SJC Canteen" />
       </div>
 
@@ -440,9 +578,9 @@ function StudentLoginScreen() {
             onChange={(event) => setPassword(event.target.value)}
             InputProps={{
               endAdornment: (
-                <IconButton onClick={() => setShowPassword((current) => !current)} edge="end" aria-label="Toggle password visibility">
+                <BounceIconButton onClick={() => setShowPassword((current) => !current)} edge="end" aria-label="Toggle password visibility">
                   {showPassword ? <VisibilityOff /> : <Visibility />}
-                </IconButton>
+                </BounceIconButton>
               ),
             }}
           />
@@ -451,19 +589,19 @@ function StudentLoginScreen() {
         {error && <div className="error-box">{error}</div>}
         {infoMessage && <div className="success-box">{infoMessage}</div>}
 
-        <Button type="submit" variant="contained" fullWidth className="login-button" disabled={isLoading}>
+        <BounceButton type="submit" variant="contained" fullWidth className="login-button" disabled={isLoading}>
           {isLoading ? <><LoadingIndicator label="Logging in" /> LOGGING IN...</> : 'LOG IN'}
-        </Button>
+        </BounceButton>
 
-        <Button type="button" variant="outlined" color="secondary" fullWidth startIcon={<Google />} onClick={handleGoogleLogin} disabled={isLoading}>
+        <BounceButton type="button" variant="outlined" color="secondary" fullWidth startIcon={<Google />} onClick={handleGoogleLogin} disabled={isLoading}>
           Continue with Google
-        </Button>
+        </BounceButton>
 
-        <button type="button" className="text-link" onClick={() => navigate('/forgot-password')}>Forgot Password?</button>
+        <BounceNativeButton type="button" className="text-link" onClick={() => navigate('/forgot-password')}>Forgot Password?</BounceNativeButton>
         <div className="divider-row"><span>OR</span></div>
-        <Button type="button" variant="outlined" color="secondary" fullWidth onClick={() => navigate('/create-account')}>Create Account</Button>
+        <BounceButton type="button" variant="outlined" color="secondary" fullWidth onClick={() => navigate('/create-account')}>Create Account</BounceButton>
       </form>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -504,9 +642,9 @@ function OwnerLoginScreen() {
   }
 
   return (
-    <div className="screen-shell login-shell">
+    <BounceSurface className="screen-shell login-shell">
       <div className="login-header">
-        <IconButton color="primary" onClick={() => navigate('/role-selection')} aria-label="Go back"><ArrowBack /></IconButton>
+        <BounceIconButton color="primary" onClick={() => navigate('/role-selection')} aria-label="Go back"><ArrowBack /></BounceIconButton>
         <img className="brand-logo small" src={appLogo} alt="SJC Canteen" />
       </div>
       <div className="login-illustration gradient-amber"><span>Store Access</span></div>
@@ -519,17 +657,17 @@ function OwnerLoginScreen() {
         {error && <div className="error-box">{error}</div>}
         {infoMessage && <div className="success-box">{infoMessage}</div>}
 
-        <Button type="submit" variant="contained" fullWidth className="login-button" disabled={isLoading}>
+        <BounceButton type="submit" variant="contained" fullWidth className="login-button" disabled={isLoading}>
           {isLoading ? <><LoadingIndicator label="Logging in" /> LOGGING IN...</> : 'LOG IN'}
-        </Button>
+        </BounceButton>
 
-        <Button type="button" variant="outlined" color="secondary" fullWidth startIcon={<Google />} onClick={handleGoogleLogin} disabled={isLoading}>
+        <BounceButton type="button" variant="outlined" color="secondary" fullWidth startIcon={<Google />} onClick={handleGoogleLogin} disabled={isLoading}>
           Continue with Google
-        </Button>
+        </BounceButton>
 
-        <Button type="button" variant="text" onClick={() => navigate('/owner-register')}>Create Store Account</Button>
+        <BounceButton type="button" variant="text" onClick={() => navigate('/owner-register')}>Create Store Account</BounceButton>
       </form>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -551,9 +689,9 @@ function ForgotPasswordScreen() {
   }
 
   return (
-    <div className="screen-shell login-shell">
+    <BounceSurface className="screen-shell login-shell">
       <div className="login-header">
-        <IconButton color="primary" onClick={() => navigate('/login')} aria-label="Go back"><ArrowBack /></IconButton>
+        <BounceIconButton color="primary" onClick={() => navigate('/login')} aria-label="Go back"><ArrowBack /></BounceIconButton>
       </div>
       <h1>Reset Password</h1>
       <p className="subtitle">Enter your email and we will send you a reset link.</p>
@@ -562,9 +700,9 @@ function ForgotPasswordScreen() {
         <TextField type="email" label="Email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" fullWidth />
         {error && <div className="error-box">{error}</div>}
         {sent && <div className="success-box">Reset instructions are ready to send for {email}.</div>}
-        <Button type="submit" variant="contained" fullWidth>SEND RESET LINK</Button>
+        <BounceButton type="submit" variant="contained" fullWidth>SEND RESET LINK</BounceButton>
       </form>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -595,9 +733,9 @@ function CreateAccountScreen() {
   }
 
   return (
-    <div className="screen-shell login-shell">
+    <BounceSurface className="screen-shell login-shell">
       <div className="login-header">
-        <IconButton color="primary" onClick={() => navigate('/login')} aria-label="Go back"><ArrowBack /></IconButton>
+        <BounceIconButton color="primary" onClick={() => navigate('/login')} aria-label="Go back"><ArrowBack /></BounceIconButton>
       </div>
       <h1>Create Account</h1>
       <p className="subtitle">Register your customer account to start ordering.</p>
@@ -615,9 +753,9 @@ function CreateAccountScreen() {
         <TextField name="email" type="email" label="Email" placeholder="yourname.sjc@phinmaed.com" fullWidth />
         <TextField name="password" type="password" label="Password" placeholder="Create a password" fullWidth inputProps={{ minLength: 6 }} />
         {error && <div className="error-box">{error}</div>}
-        <Button type="submit" variant="contained" fullWidth disabled={isLoading}>{isLoading ? <><LoadingIndicator label="Creating account" /> CREATING...</> : 'CREATE ACCOUNT'}</Button>
+        <BounceButton type="submit" variant="contained" fullWidth disabled={isLoading}>{isLoading ? <><LoadingIndicator label="Creating account" /> CREATING...</> : 'CREATE ACCOUNT'}</BounceButton>
       </form>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -648,9 +786,9 @@ function OwnerRegisterScreen() {
   }
 
   return (
-    <div className="screen-shell login-shell">
+    <BounceSurface className="screen-shell login-shell">
       <div className="login-header">
-        <IconButton color="primary" onClick={() => navigate('/owner-login')} aria-label="Go back"><ArrowBack /></IconButton>
+        <BounceIconButton color="primary" onClick={() => navigate('/owner-login')} aria-label="Go back"><ArrowBack /></BounceIconButton>
       </div>
       <div className="login-illustration gradient-gold"><span>Open Your Store</span></div>
       <h1>Create Store</h1>
@@ -662,9 +800,9 @@ function OwnerRegisterScreen() {
         <TextField name="email" type="email" label="Email" placeholder="you@example.com" fullWidth />
         <TextField name="password" type="password" label="Password" placeholder="Create a password" fullWidth inputProps={{ minLength: 6 }} />
         {error && <div className="error-box">{error}</div>}
-        <Button type="submit" variant="contained" fullWidth disabled={isLoading}>{isLoading ? <><LoadingIndicator label="Creating store" /> CREATING...</> : 'CREATE STORE ACCOUNT'}</Button>
+        <BounceButton type="submit" variant="contained" fullWidth disabled={isLoading}>{isLoading ? <><LoadingIndicator label="Creating store" /> CREATING...</> : 'CREATE STORE ACCOUNT'}</BounceButton>
       </form>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -690,8 +828,8 @@ function AdminLoginScreen() {
   }
 
   return (
-    <div className="screen-shell login-shell">
-      <div className="login-header"><IconButton onClick={() => navigate('/role-selection')} aria-label="Go back"><ArrowBack /></IconButton></div>
+    <BounceSurface className="screen-shell login-shell">
+      <div className="login-header"><BounceIconButton onClick={() => navigate('/role-selection')} aria-label="Go back"><ArrowBack /></BounceIconButton></div>
       <div className="login-illustration gradient-gold"><span>Administration</span></div>
       <h1>Admin Login</h1>
       <p className="subtitle">Manage accounts and database records.</p>
@@ -699,9 +837,9 @@ function AdminLoginScreen() {
         <TextField label="Admin email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} fullWidth required />
         <TextField label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} fullWidth required />
         {error && <div className="error-box">{error}</div>}
-        <Button type="submit" variant="contained" fullWidth disabled={loading}>{loading ? 'LOGGING IN...' : 'ADMIN LOGIN'}</Button>
+        <BounceButton type="submit" variant="contained" fullWidth disabled={loading}>{loading ? 'LOGGING IN...' : 'ADMIN LOGIN'}</BounceButton>
       </form>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -793,7 +931,7 @@ function AdminNavigationScreen() {
   }
 
   return (
-    <div className="screen-shell dashboard-screen">
+    <BounceSurface className="screen-shell dashboard-screen">
       <div className="page-heading"><span className="eyebrow">ADMINISTRATION</span><h1>Account Management</h1><p>Review active student and owner profiles.</p></div>
       {error && <div className="error-box">{error}</div>}
       <div className="order-list">
@@ -804,10 +942,10 @@ function AdminNavigationScreen() {
             <p>{user.role === 'owner' ? user.storeName || 'Store' : user.studentId || 'Customer account'}</p>
             {user.role === 'owner' && <p>Approval: {user.status || 'pending'}</p>}
             <div className="header-action-group">
-              <button className="secondary-button" onClick={() => startEditing(user)}>EDIT DATA</button>
-              {user.role === 'owner' && user.status !== 'approved' && <button className="primary-button" onClick={() => setOwnerApproval(user, 'approved')}>APPROVE OWNER</button>}
-              {user.role === 'owner' && user.status === 'approved' && <button className="secondary-button" onClick={() => setOwnerApproval(user, 'rejected')}>REJECT OWNER</button>}
-              <button className="secondary-button" onClick={() => removeUser(user)}>DELETE ACCOUNT</button>
+              <BounceNativeButton className="secondary-button" onClick={() => startEditing(user)}>EDIT DATA</BounceNativeButton>
+              {user.role === 'owner' && user.status !== 'approved' && <BounceNativeButton className="primary-button" onClick={() => setOwnerApproval(user, 'approved')}>APPROVE OWNER</BounceNativeButton>}
+              {user.role === 'owner' && user.status === 'approved' && <BounceNativeButton className="secondary-button" onClick={() => setOwnerApproval(user, 'rejected')}>REJECT OWNER</BounceNativeButton>}
+              <BounceNativeButton className="secondary-button" onClick={() => removeUser(user)}>DELETE ACCOUNT</BounceNativeButton>
             </div>
           </article>
         ))}
@@ -826,21 +964,20 @@ function AdminNavigationScreen() {
           {editForm.role === 'owner' && <TextField margin="dense" label="Store name" value={editForm.storeName} onChange={(event) => setEditForm({ ...editForm, storeName: event.target.value })} fullWidth />}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditingUser(null)} disabled={isSaving}>Cancel</Button>
-          <Button onClick={saveUser} variant="contained" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save changes'}</Button>
+          <BounceButton onClick={() => setEditingUser(null)} disabled={isSaving}>Cancel</BounceButton>
+          <BounceButton onClick={saveUser} variant="contained" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save changes'}</BounceButton>
         </DialogActions>
       </Dialog>
       <div className="header-action-group">
-        <button className="secondary-button compact-action" onClick={logoutAdmin}>LOG OUT</button>
+        <BounceNativeButton className="secondary-button compact-action" onClick={logoutAdmin}>LOG OUT</BounceNativeButton>
       </div>
       <AssistantDrawer />
-    </div>
+    </BounceSurface>
   )
 }
 
 function StudentNavigationScreen() {
   const [tab, setTab] = useState('Stores')
-  const navStyle = useSpring({ from: { opacity: 0, transform: 'translateX(-50%) translateY(20px)' }, to: { opacity: 1, transform: 'translateX(-50%) translateY(0)' }, delay: 120, config: { tension: 260, friction: 24 } })
 
   const views = {
     Stores: <StudentStoreBrowserScreen />,
@@ -854,11 +991,14 @@ function StudentNavigationScreen() {
       <StudentNotificationBanner />
       {views[tab]}
       <AssistantDrawer />
-      <animated.nav className="bottom-nav student-nav" style={navStyle}>
-        {['Stores', 'Orders', 'History', 'Profile'].map((item) => (
-          <Button key={item} className={tab === item ? 'nav-item active' : 'nav-item'} variant="text" onClick={() => setTab(item)}>{item}</Button>
-        ))}
-      </animated.nav>
+      {createPortal(
+        <nav className="bottom-nav student-nav" aria-label="Customer navigation">
+          {['Stores', 'Orders', 'History', 'Profile'].map((item) => (
+            <BounceButton key={item} className={tab === item ? 'nav-item active' : 'nav-item'} variant="text" onClick={() => setTab(item)}><DashboardNavContent item={item} /></BounceButton>
+          ))}
+        </nav>,
+        document.body,
+      )}
     </div>
   )
 }
@@ -901,8 +1041,8 @@ function StudentNotificationBanner() {
         <strong>{notification.title || 'Order update'}</strong>
         <span>{notification.message}</span>
       </div>
-      <button type="button" onClick={() => navigate('/notifications')}>VIEW</button>
-      <button type="button" className="notification-dismiss" onClick={dismiss} aria-label="Dismiss notification">×</button>
+      <BounceNativeButton type="button" onClick={() => navigate('/notifications')}>VIEW</BounceNativeButton>
+      <BounceNativeButton type="button" className="notification-dismiss" onClick={dismiss} aria-label="Dismiss notification">×</BounceNativeButton>
     </animated.div>
   )
 }
@@ -995,7 +1135,6 @@ function StudentStoreBrowserScreen() {
           <span className="eyebrow">SJC CANTEEN</span>
           <h1>Browse Stores</h1>
         </div>
-        <div className="avatar">S</div>
       </div>
 
       <div className="promo-panel">
@@ -1012,12 +1151,12 @@ function StudentStoreBrowserScreen() {
       </div>
 
       <div className="header-action-group student-action-group">
-        <button type="button" className="secondary-button compact-action" onClick={() => navigate('/notifications')}>
+        <BounceNativeButton type="button" className="secondary-button compact-action" onClick={() => navigate('/notifications')}>
           <NotificationsNone className="action-icon" aria-hidden="true" />
           <span>NOTIFICATIONS &amp; ORDER HISTORY</span>
           <History className="action-icon" aria-hidden="true" />
-        </button>
-        <button type="button" className="secondary-button compact-action" onClick={async () => {
+        </BounceNativeButton>
+        <BounceNativeButton type="button" className="secondary-button compact-action" onClick={async () => {
           if (!auth?.currentUser || !window.confirm('Clear your order history?')) return
           try {
             await clearStudentOrders(auth.currentUser.uid)
@@ -1028,7 +1167,7 @@ function StudentStoreBrowserScreen() {
         }}>
           <DeleteSweep className="action-icon" aria-hidden="true" />
           <span>CLEAR ORDERS</span>
-        </button>
+        </BounceNativeButton>
       </div>
 
       {error && <div className="error-box">{error}</div>}
@@ -1036,13 +1175,13 @@ function StudentStoreBrowserScreen() {
       <div className="store-list">
         {stores.length === 0 && <div className="empty-panel">No stores are available yet. New owners will appear here as soon as they register.</div>}
         {stores.map((store) => (
-          <button type="button" key={store.id} className={selectedStoreId === store.id ? 'store-tile active' : 'store-tile'} onClick={() => selectStore(store.id)}>
+          <BounceNativeButton type="button" key={store.id} className={selectedStoreId === store.id ? 'store-tile active' : 'store-tile'} onClick={() => selectStore(store.id)}>
             <div className="store-tile-icon" aria-hidden="true"><Storefront /></div>
             <div className="store-tile-copy">
               <strong>{store.storeName || 'Store'}</strong>
               <span>{store.name || 'Owner'}</span>
             </div>
-          </button>
+          </BounceNativeButton>
         ))}
       </div>
 
@@ -1053,7 +1192,7 @@ function StudentStoreBrowserScreen() {
               <h2>{selectedStore.storeName}</h2>
               <p>{menuItems.length} menu items available</p>
             </div>
-            <Button className="cart-button" variant="contained" color="primary" onClick={() => setCartOpen((current) => !current)} aria-label="View cart">Cart ({cart.length})</Button>
+            <BounceButton className="cart-button" variant="contained" color="primary" onClick={() => setCartOpen((current) => !current)} aria-label="View cart">Cart ({cart.length})</BounceButton>
           </div>
 
           {cartOpen && cart.length > 0 && (
@@ -1068,10 +1207,10 @@ function StudentStoreBrowserScreen() {
               <div className="cart-total"><strong>Total</strong><strong>PHP {totalCartValue}</strong></div>
               <div className="payment-methods">
                 <strong>Payment method</strong>
-                <Button className={paymentMethod === 'Cash on Pickup' ? 'payment-option selected' : 'payment-option'} variant={paymentMethod === 'Cash on Pickup' ? 'contained' : 'outlined'} onClick={() => setPaymentMethod('Cash on Pickup')}>Cash on Pickup</Button>
-                <Button className={paymentMethod === 'GCash' ? 'payment-option selected' : 'payment-option'} variant={paymentMethod === 'GCash' ? 'contained' : 'outlined'} onClick={() => setPaymentMethod('GCash')}>GCash</Button>
+                <BounceButton className={paymentMethod === 'Cash on Pickup' ? 'payment-option selected' : 'payment-option'} variant={paymentMethod === 'Cash on Pickup' ? 'contained' : 'outlined'} onClick={() => setPaymentMethod('Cash on Pickup')}>Cash on Pickup</BounceButton>
+                <BounceButton className={paymentMethod === 'GCash' ? 'payment-option selected' : 'payment-option'} variant={paymentMethod === 'GCash' ? 'contained' : 'outlined'} onClick={() => setPaymentMethod('GCash')}>GCash</BounceButton>
               </div>
-              <Button variant="contained" fullWidth onClick={handleCheckout} disabled={isOrdering}>{isOrdering ? <><LoadingIndicator label="Placing order" /> PLACING ORDER...</> : 'PLACE ORDER'}</Button>
+              <BounceButton variant="contained" fullWidth onClick={handleCheckout} disabled={isOrdering}>{isOrdering ? <><LoadingIndicator label="Placing order" /> PLACING ORDER...</> : 'PLACE ORDER'}</BounceButton>
             </div>
           )}
 
@@ -1088,7 +1227,7 @@ function StudentStoreBrowserScreen() {
                   <p>{food.description || 'Freshly prepared at this store.'}</p>
                   <div className="food-card-footer">
                     <strong>PHP {Number(food.price || 0)}</strong>
-                    <IconButton className="add-button" color="primary" onClick={() => addToCart(food)} aria-label={`Add ${food.title || food.name} to cart`}><AddShoppingCart /></IconButton>
+                    <BounceIconButton className="add-button" color="primary" onClick={() => addToCart(food)} aria-label={`Add ${food.title || food.name} to cart`}><AddShoppingCart /></BounceIconButton>
                   </div>
                 </div>
               </animated.article>
@@ -1173,15 +1312,15 @@ function StudentOrdersScreen({ history, onBack }) {
   }
 
   return (
-    <div className="screen-shell dashboard-screen">
+    <BounceSurface className="screen-shell dashboard-screen">
       <div className="page-heading">
-        {history && <IconButton color="primary" onClick={onBack} aria-label="Back to stores"><ArrowBack /></IconButton>}
+        {history && <BounceIconButton color="primary" onClick={onBack} aria-label="Back to stores"><ArrowBack /></BounceIconButton>}
         <span className="eyebrow">SJC CANTEEN</span>
         <h1>{history ? 'Order History' : 'Active Orders'}</h1>
         <p>{history ? 'Your previous canteen orders.' : 'Track your meals from order to pickup.'}</p>
       </div>
       <div className="header-action-group">
-        <button className="secondary-button compact-action" onClick={clearOrders}>CLEAR ORDERS</button>
+        <BounceNativeButton className="secondary-button compact-action" onClick={clearOrders}>CLEAR ORDERS</BounceNativeButton>
       </div>
       {error && <div className="error-box">{error}</div>}
       <div className="order-list">
@@ -1200,7 +1339,7 @@ function StudentOrdersScreen({ history, onBack }) {
           </article>
         ))}
       </div>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -1242,23 +1381,23 @@ function StudentProfileScreen() {
   }
 
   if (!authReady) {
-    return <div className="screen-shell dashboard-screen"><div className="page-heading"><span className="eyebrow">ACCOUNT</span><h1>Customer Profile</h1><p>Loading your account...</p></div></div>
+    return <BounceSurface className="screen-shell dashboard-screen"><div className="page-heading"><span className="eyebrow">ACCOUNT</span><h1>Customer Profile</h1><p>Loading your account...</p></div></BounceSurface>
   }
 
   return (
-    <div className="screen-shell dashboard-screen">
+    <BounceSurface className="screen-shell dashboard-screen">
       <div className="page-heading"><span className="eyebrow">ACCOUNT</span><h1>Customer Profile</h1><p>Manage your account details and preferences.</p></div>
       <div className="profile-card">
         <div className="avatar large">{(name || 'S').charAt(0).toUpperCase()}</div>
         <label><span>Full Name</span><input value={name} onChange={(event) => setName(event.target.value)} /></label>
         <label><span>Email</span><input value={profile?.email || auth?.currentUser?.email || ''} disabled /></label>
         <label><span>Customer ID</span><input value={profile?.studentId || ''} disabled /></label>
-        <button className="secondary-button" onClick={() => navigate('/notifications')}>NOTIFICATIONS</button>
-        <button className="primary-button" onClick={saveProfile}>SAVE PROFILE</button>
+        <BounceNativeButton className="secondary-button" onClick={() => navigate('/notifications')}>NOTIFICATIONS</BounceNativeButton>
+        <BounceNativeButton className="primary-button" onClick={saveProfile}>SAVE PROFILE</BounceNativeButton>
         {message && <div className="success-box">{message}</div>}
-        <button className="secondary-button" onClick={logoutStudent}>LOG OUT</button>
+        <BounceNativeButton className="secondary-button" onClick={logoutStudent}>LOG OUT</BounceNativeButton>
       </div>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -1283,11 +1422,11 @@ function NotificationsScreen() {
   }, [])
 
   return (
-    <div className="screen-shell dashboard-screen">
+    <BounceSurface className="screen-shell dashboard-screen">
       <div className="page-heading">
-        <IconButton color="primary" onClick={() => navigate(-1)} aria-label="Go back">
+        <BounceIconButton color="primary" onClick={() => navigate(-1)} aria-label="Go back">
           <ArrowBack />
-        </IconButton>
+        </BounceIconButton>
         <span className="eyebrow">UPDATES</span>
         <h1>Notifications</h1>
         <p>Order updates and canteen announcements.</p>
@@ -1302,13 +1441,12 @@ function NotificationsScreen() {
           </article>
         ))}
       </div>
-    </div>
+    </BounceSurface>
   )
 }
 
 function OwnerNavigationScreen() {
   const [tab, setTab] = useState('Dashboard')
-  const navStyle = useSpring({ from: { opacity: 0, transform: 'translateX(-50%) translateY(20px)' }, to: { opacity: 1, transform: 'translateX(-50%) translateY(0)' }, delay: 120, config: { tension: 260, friction: 24 } })
   const views = {
     Dashboard: <OwnerDashboardScreen />,
     Orders: <OwnerOrdersScreen />,
@@ -1320,11 +1458,14 @@ function OwnerNavigationScreen() {
     <div className="app-shell">
       {views[tab]}
       <AssistantDrawer />
-      <animated.nav className="bottom-nav owner-nav" style={navStyle}>
-        {['Dashboard', 'Orders', 'Inventory', 'Profile'].map((item) => (
-          <Button key={item} className={tab === item ? 'nav-item active' : 'nav-item'} variant="text" onClick={() => setTab(item)}>{item}</Button>
-        ))}
-      </animated.nav>
+      {createPortal(
+        <nav className="bottom-nav owner-nav" aria-label="Store navigation">
+          {['Dashboard', 'Orders', 'Inventory', 'Profile'].map((item) => (
+            <BounceButton key={item} className={tab === item ? 'nav-item active' : 'nav-item'} variant="text" onClick={() => setTab(item)}><DashboardNavContent item={item} owner /></BounceButton>
+          ))}
+        </nav>,
+        document.body,
+      )}
     </div>
   )
 }
@@ -1387,7 +1528,7 @@ function OwnerDashboardScreen() {
   }
 
   return (
-    <div className="screen-shell">
+    <BounceSurface className="screen-shell">
       <div className="store-hero-card">
         <div className="store-hero-copy">
           <span className="eyebrow">SJC CANTEEN</span>
@@ -1406,7 +1547,7 @@ function OwnerDashboardScreen() {
         <div className="metric-card"><span>Menu Items</span><strong>{availableItems}</strong></div>
       </div>
       <div className="header-action-group">
-        <button className="secondary-button compact-action" onClick={clearOrders}>CLEAR ORDERS</button>
+        <BounceNativeButton className="secondary-button compact-action" onClick={clearOrders}>CLEAR ORDERS</BounceNativeButton>
       </div>
 
       <div className="owner-order-list">
@@ -1419,11 +1560,11 @@ function OwnerDashboardScreen() {
             <p>Customer ID: {order.studentId || 'Not provided'} · {order.studentEmail || 'Email not provided'}</p>
             <p>{order.itemsDescription}</p>
             <div className="order-heading"><strong>PHP {Number(order.total || 0)}</strong><span>{order.paymentMethod || 'Payment not recorded'}</span></div>
-            {order.status === 'Pending' && <button className="primary-button" onClick={() => updateOrderStatus(order.id, 'Accepted')}>ACCEPT ORDER</button>}
+            {order.status === 'Pending' && <BounceNativeButton className="primary-button" onClick={() => updateOrderStatus(order.id, 'Accepted')}>ACCEPT ORDER</BounceNativeButton>}
           </article>
         ))}
       </div>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -1455,7 +1596,7 @@ function OwnerOrdersScreen() {
   }
 
   return (
-    <div className="screen-shell dashboard-screen">
+    <BounceSurface className="screen-shell dashboard-screen">
       <div className="page-heading"><span className="eyebrow">OPERATIONS</span><h1>Orders</h1><p>Review and advance student orders.</p></div>
       {error && <div className="error-box">{error}</div>}
       <div className="order-list">
@@ -1467,11 +1608,11 @@ function OwnerOrdersScreen() {
             <p>Customer ID: {order.studentId || 'Not provided'} · {order.studentEmail || 'Email not provided'}</p>
             <p>{order.itemsDescription}</p>
             <div className="order-heading"><strong>PHP {Number(order.total || 0)}</strong><span>{order.paymentMethod || 'Payment not recorded'}</span></div>
-            {order.status !== 'Completed' && <button className="primary-button" onClick={() => advance(order)}>MARK {order.status === 'Pending' ? 'ACCEPTED' : order.status === 'Accepted' ? 'PREPARING' : order.status === 'Preparing' ? 'READY' : 'COMPLETED'}</button>}
+            {order.status !== 'Completed' && <BounceNativeButton className="primary-button" onClick={() => advance(order)}>MARK {order.status === 'Pending' ? 'ACCEPTED' : order.status === 'Accepted' ? 'PREPARING' : order.status === 'Preparing' ? 'READY' : 'COMPLETED'}</BounceNativeButton>}
           </article>
         ))}
       </div>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -1541,7 +1682,7 @@ function OwnerInventoryScreen() {
   }
 
   return (
-    <div className="screen-shell dashboard-screen">
+    <BounceSurface className="screen-shell dashboard-screen">
       <div className="page-heading"><span className="eyebrow">CATALOG</span><h1>Inventory</h1><p>Add menu items and control availability.</p></div>
       <form className="inventory-form" onSubmit={handleAddItem}>
         <input placeholder="Item name" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
@@ -1554,8 +1695,8 @@ function OwnerInventoryScreen() {
         </select>
 
         {message && <div className="success-box">{message}</div>}
-        <button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? <><LoadingIndicator label="Saving item" /> SAVING...</> : editingId ? 'UPDATE ITEM' : 'ADD ITEM'}</button>
-        {editingId && <button className="secondary-button" type="button" onClick={cancelEditing}>CANCEL EDIT</button>}
+        <BounceNativeButton className="primary-button" type="submit" disabled={isSaving}>{isSaving ? <><LoadingIndicator label="Saving item" /> SAVING...</> : editingId ? 'UPDATE ITEM' : 'ADD ITEM'}</BounceNativeButton>
+        {editingId && <BounceNativeButton className="secondary-button" type="button" onClick={cancelEditing}>CANCEL EDIT</BounceNativeButton>}
       </form>
 
       <div className="order-list">
@@ -1569,13 +1710,13 @@ function OwnerInventoryScreen() {
                 <p>{item.category} · {item.isAvailable === false ? 'Unavailable' : 'Available'}</p>
               </div>
             </div>
-            <button className="secondary-button" onClick={() => startEditing(item)}>EDIT ITEM</button>
-            <button className="secondary-button" onClick={() => toggleFoodAvailability(item.id, item.isAvailable !== false)}>{item.isAvailable === false ? 'MAKE AVAILABLE' : 'MARK SOLD OUT'}</button>
-            <button className="text-link" onClick={() => deleteFoodItem(item.id)}>DELETE ITEM</button>
+            <BounceNativeButton className="secondary-button" onClick={() => startEditing(item)}>EDIT ITEM</BounceNativeButton>
+            <BounceNativeButton className="secondary-button" onClick={() => toggleFoodAvailability(item.id, item.isAvailable !== false)}>{item.isAvailable === false ? 'MAKE AVAILABLE' : 'MARK SOLD OUT'}</BounceNativeButton>
+            <BounceNativeButton className="text-link" onClick={() => deleteFoodItem(item.id)}>DELETE ITEM</BounceNativeButton>
           </article>
         ))}
       </div>
-    </div>
+    </BounceSurface>
   )
 }
 
@@ -1594,16 +1735,16 @@ function OwnerProfileScreen() {
   }
 
   return (
-    <div className="screen-shell dashboard-screen">
+    <BounceSurface className="screen-shell dashboard-screen">
       <div className="page-heading"><span className="eyebrow">ACCOUNT</span><h1>Store Profile</h1><p>Manage your SJC Canteen store account.</p></div>
       <div className="profile-card">
         <div className="avatar large">{(profile?.storeName || 'O').charAt(0).toUpperCase()}</div>
         <h2>{profile?.storeName || 'Store'}</h2>
         <p>{profile?.email || ''}</p>
         <p>{profile?.name || 'Owner'}</p>
-        <button className="secondary-button" onClick={logoutOwner}>LOG OUT</button>
+        <BounceNativeButton className="secondary-button" onClick={logoutOwner}>LOG OUT</BounceNativeButton>
       </div>
-    </div>
+    </BounceSurface>
   )
 }
 

@@ -8,18 +8,25 @@ html, body, #root {
   width: 100%;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: #f9fbef;
+  overflow-x: hidden;
 }
 
 body {
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
 img {
   max-width: 100%;
+  height: auto;
   display: block;
 }
+

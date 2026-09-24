@@ -163,7 +163,7 @@ function RoleSelectionScreen() {
   }
 
   return (
-    <div className="screen-shell">
+    <div className="screen-shell role-shell">
       <div className="header-row">
         <button type="button" className="logo-easter-egg" onClick={handleLogoClick} aria-label="SJC Canteen logo">
           <img className="brand-logo small" src={appLogo} alt="SJC Canteen" />
@@ -562,7 +562,9 @@ function AdminNavigationScreen() {
           </article>
         ))}
       </div>
-      <button className="secondary-button" onClick={logoutAdmin}>LOG OUT</button>
+      <div className="header-action-group">
+        <button className="secondary-button compact-action" onClick={logoutAdmin}>LOG OUT</button>
+      </div>
     </div>
   )
 }
@@ -731,16 +733,18 @@ function StudentStoreBrowserScreen() {
         </div>
       </div>
 
-      <button type="button" className="secondary-button compact-action" onClick={() => navigate('/notifications')}>NOTIFICATIONS &amp; ORDER HISTORY</button>
-      <button type="button" className="secondary-button compact-action" onClick={async () => {
-        if (!auth?.currentUser || !window.confirm('Clear your order history?')) return
-        try {
-          await clearStudentOrders(auth.currentUser.uid)
-          setOrderMessage('Your orders were cleared.')
-        } catch (clearError) {
-          setOrderMessage(formatFirebaseError(clearError))
-        }
-      }}>CLEAR ORDERS</button>
+      <div className="header-action-group">
+        <button type="button" className="secondary-button compact-action" onClick={() => navigate('/notifications')}>NOTIFICATIONS &amp; ORDER HISTORY</button>
+        <button type="button" className="secondary-button compact-action" onClick={async () => {
+          if (!auth?.currentUser || !window.confirm('Clear your order history?')) return
+          try {
+            await clearStudentOrders(auth.currentUser.uid)
+            setOrderMessage('Your orders were cleared.')
+          } catch (clearError) {
+            setOrderMessage(formatFirebaseError(clearError))
+          }
+        }}>CLEAR ORDERS</button>
+      </div>
 
       {error && <div className="error-box">{error}</div>}
 
@@ -890,7 +894,9 @@ function StudentOrdersScreen({ history }) {
         <h1>{history ? 'Order History' : 'Active Orders'}</h1>
         <p>{history ? 'Your previous canteen orders.' : 'Track your meals from order to pickup.'}</p>
       </div>
-      <button className="secondary-button compact-action" onClick={clearOrders}>CLEAR ORDERS</button>
+      <div className="header-action-group">
+        <button className="secondary-button compact-action" onClick={clearOrders}>CLEAR ORDERS</button>
+      </div>
       {error && <div className="error-box">{error}</div>}
       <div className="order-list">
         {visibleOrders.length === 0 && <div className="empty-panel">No {history ? 'past' : 'active'} orders yet.</div>}
@@ -1103,7 +1109,9 @@ function OwnerDashboardScreen() {
         <div className="metric-card"><span>Pending</span><strong>{pendingCount}</strong></div>
         <div className="metric-card"><span>Menu Items</span><strong>{availableItems}</strong></div>
       </div>
-      <button className="secondary-button compact-action" onClick={clearOrders}>CLEAR ORDERS</button>
+      <div className="header-action-group">
+        <button className="secondary-button compact-action" onClick={clearOrders}>CLEAR ORDERS</button>
+      </div>
 
       <div className="owner-order-list">
         <div className="section-heading"><h2>Incoming Orders</h2><span>{orders.length} total</span></div>

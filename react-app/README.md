@@ -1,4 +1,4 @@
-# React + Vite
+# SJC Canteen React App
 
 ## Firebase setup
 
@@ -11,8 +11,6 @@ npx firebase login
 npx firebase use <your-firebase-project-id>
 npx firebase deploy --only firestore:rules
 ```
-
-Without this deployment, the student store feed or owner inventory can show `Missing or insufficient permissions`.
 
 ## Admin access
 
@@ -29,19 +27,8 @@ role: admin
 
 4. Open `/admin-login` in the app and sign in with that account.
 
-The admin portal can list and remove Firestore user profiles and purge order records. Removing the profile does not delete the Firebase Authentication account itself; full Auth deletion requires a trusted Firebase Admin SDK Cloud Function. This is intentional because exposing Auth deletion credentials in the React client would be unsafe.
+The admin portal can list and remove user accounts. Account deletion uses a trusted Firebase Admin SDK Cloud Function when deployed. Owner applications require admin approval before access.
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+## Local AI assistant
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+The assistant uses a local Ollama model through the Vite development proxy. Install Ollama, run `ollama pull gemma3:1b`, and keep Ollama running while using the app locally.

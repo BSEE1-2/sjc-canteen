@@ -39,10 +39,17 @@ export function normalizeStudentEmail(input) {
 
 const privilegedAdminEmail = 'admin@admin.com'
 const studentEmailPattern = /^[^\s@]+@phinmaed\.com$/i
+const studentIdPattern = /^\d{2}-\d{4}-\d{6}$/
 
 function requireStudentEmail(email) {
   if (!studentEmailPattern.test(email)) {
     throw new Error('Student accounts must use a valid @phinmaed.com email address.')
+  }
+}
+
+function requireStudentId(studentId) {
+  if (!studentIdPattern.test(studentId)) {
+    throw new Error('Student ID must use the format ##-####-###### (for example, 06-2526-004154).')
   }
 }
 
@@ -53,8 +60,9 @@ export async function loginWithRole(input, password, expectedRole) {
 
   const isPrivilegedAdmin = expectedRole === 'admin' && email.toLowerCase() === privilegedAdminEmail
   if (expectedRole === 'student' && !credential.user.emailVerified && !isPrivilegedAdmin) {
+    await sendEmailVerification(credential.user)
     await signOut(auth)
-    throw new Error('Please verify your email address before signing in. Check your inbox for the verification link.')
+    throw new Error('Your email is not verified. We sent a new verification link. Check your inbox and spam folder, then try again.')
   }
 
   const profile = await getUserProfile(credential.user.uid)
@@ -123,7 +131,9 @@ export async function loginWithGoogle(expectedRole) {
 export async function createStudentAccount({ email, password, name, studentId }) {
   requireFirebase()
   const normalizedEmail = email.trim().toLowerCase()
+  const normalizedStudentId = studentId.trim()
   requireStudentEmail(normalizedEmail)
+  requireStudentId(normalizedStudentId)
   const credential = await createUserWithEmailAndPassword(auth, normalizedEmail, password)
   await updateProfile(credential.user, { displayName: name.trim() })
   await setDoc(doc(db, 'users', credential.user.uid), {
@@ -131,7 +141,7 @@ export async function createStudentAccount({ email, password, name, studentId })
     name: name.trim(),
     email: normalizedEmail,
     role: 'student',
-    studentId: studentId.trim(),
+    studentId: normalizedStudentId,
     status: 'active',
     emailVerified: false,
     createdAt: serverTimestamp(),
